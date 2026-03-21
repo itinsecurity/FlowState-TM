@@ -128,6 +128,11 @@ th.control-items-th {
   color: var(--entity-threats-text);
 }
 
+.badge-controls {
+  background-color: var(--entity-controls-bg);
+  color: var(--entity-controls-text);
+}
+
 /* No separate dark mode rules needed - entity variables handle theming */
 
 /* Expanded Panel */

@@ -58,6 +58,7 @@ export function useDataFlowCreation({
   }, [phase, sourceNodeId, sourceHandleId, focusedHandleId, targetNodeId, focusedNodeId]);
   
   const resetState = useCallback(() => {
+    if (stateRef.current.phase === 'idle') return;
     setPhase('idle');
     setSourceNodeId(null);
     setSourceHandleId(null);

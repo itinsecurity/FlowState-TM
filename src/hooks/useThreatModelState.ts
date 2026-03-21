@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
-import type { ThreatModel, ComponentType, Direction } from '../types/threatModel';
+import type { ThreatModel, ComponentType, ComponentColor, Direction } from '../types/threatModel';
 import { updateYamlField, updateYamlTopLevelField, updateYamlTopLevelStringArray, renameDataFlowRef, reorderYamlSection, normalizeYamlLegacyValues } from '../utils/yamlParser';
 import { generateDataFlowRef } from '../utils/refGenerators';
 import { createSimpleFieldHandler, createArrayFieldHandler } from '../utils/handlerFactory';
@@ -72,6 +72,7 @@ export interface UseThreatModelStateResult {
   // Component handlers (with diagram updates)
   handleComponentNameChange: (componentRef: string, newName: string) => void;
   handleComponentTypeChange: (componentRef: string, newType: ComponentType) => void;
+  handleComponentColorChange: (componentRef: string, newColor: ComponentColor | undefined) => void;
   handleComponentDescriptionChange: (componentRef: string, newDescription: string) => void;
   handleComponentAssetsChange: (componentRef: string, newAssets: string[]) => void;
   
@@ -137,7 +138,7 @@ export function useThreatModelState(): UseThreatModelStateResult {
     setNodes(snapshot.nodes);
     setEdges(snapshot.edges);
     setYamlContent(snapshot.yamlContent);
-  }, []);
+  }, [setYamlContent]);
   
   // Undo/Redo functionality
   const { canUndo, canRedo, undo, redo, recordState, clearHistory } = useUndoRedo(restoreSnapshot);
@@ -176,7 +177,7 @@ export function useThreatModelState(): UseThreatModelStateResult {
   // Helper to update YAML content surgically
   const updateYaml = useCallback((updater: (content: string) => string) => {
     setYamlContent((prev) => updater(prev));
-  }, []);
+  }, [setYamlContent]);
   
   // Wrapper function to record state after any handler executes
   const withHistory = useCallback(<T extends any[]>(
@@ -378,6 +379,30 @@ export function useThreatModelState(): UseThreatModelStateResult {
         )
       );
     })(componentRef, newType);
+  }, [updateYaml, withHistory]);
+
+  const handleComponentColorChange = useCallback((componentRef: string, newColor: ComponentColor | undefined): void => {
+    withHistory((componentRef: string, newColor: ComponentColor | undefined): void => {
+      setThreatModel(
+        produce((draft) => {
+          if (!draft) return;
+          const component = draft.components.find((c) => c.ref === componentRef);
+          if (component) {
+            component.color = newColor;
+          }
+        })
+      );
+
+      updateYaml((content) => updateYamlField(content, 'components', componentRef, 'color', newColor));
+
+      setNodes((prevNodes) =>
+        prevNodes.map((node) =>
+          node.id === componentRef
+            ? { ...node, data: { ...node.data, color: newColor } }
+            : node
+        )
+      );
+    })(componentRef, newColor);
   }, [updateYaml, withHistory]);
 
   const handleComponentDescriptionChange = useCallback((componentRef: string, newDescription: string): void => {
@@ -819,6 +844,7 @@ export function useThreatModelState(): UseThreatModelStateResult {
     handleControlImplementedInChange,
     handleComponentNameChange,
     handleComponentTypeChange,
+    handleComponentColorChange,
     handleComponentDescriptionChange,
     handleComponentAssetsChange,
     handleBoundaryNameChange,

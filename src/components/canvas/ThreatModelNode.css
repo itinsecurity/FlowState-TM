@@ -3,9 +3,33 @@
 .threat-node {
   padding: 4px;
   border: 2px solid var(--node-border, #000);
-  background: var(--bg-primary, white);
+  background: var(--component-fill, var(--bg-primary, white));
   min-width: 100px;
   min-height: 46px;
+}
+
+.threat-node.component-color-yellow {
+  --component-fill: var(--component-color-yellow-bg);
+}
+
+.threat-node.component-color-blue {
+  --component-fill: var(--component-color-blue-bg);
+}
+
+.threat-node.component-color-green {
+  --component-fill: var(--component-color-green-bg);
+}
+
+.threat-node.component-color-red {
+  --component-fill: var(--component-color-red-bg);
+}
+
+.threat-node.component-color-orange {
+  --component-fill: var(--component-color-orange-bg);
+}
+
+.threat-node.component-color-purple {
+  --component-fill: var(--component-color-purple-bg);
 }
 
 /* Internal Component - Rounded Rectangle */
@@ -321,9 +345,22 @@
 /* Node toolbar styles */
 .node-toolbar-top {
   display: flex;
+  flex-direction: column;
   gap: 6px;
   align-items: center;
   justify-content: center;
+}
+
+.node-toolbar-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-toolbar-color-row {
+  flex-wrap: wrap;
+  max-width: 160px;
 }
 
 .node-toolbar-bottom {
@@ -338,6 +375,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-primary, #fff);
+  border: none;
   cursor: pointer;
   padding: 4px 8px;
   transition: all 0.15s ease;
@@ -395,6 +433,49 @@
   border-top-color: var(--accent-color, #4a90d9);
   border-bottom-color: var(--accent-color, #4a90d9);
   background: rgba(74, 144, 217, 0.1);
+}
+
+.node-toolbar-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(17, 24, 39, 0.18);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.node-toolbar-color-swatch:hover {
+  transform: scale(1.08);
+}
+
+.node-toolbar-color-swatch.active {
+  border-color: var(--accent-color, #4a90d9);
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.node-toolbar-color-swatch.color-yellow {
+  background: var(--component-color-yellow-bg);
+}
+
+.node-toolbar-color-swatch.color-blue {
+  background: var(--component-color-blue-bg);
+}
+
+.node-toolbar-color-swatch.color-green {
+  background: var(--component-color-green-bg);
+}
+
+.node-toolbar-color-swatch.color-red {
+  background: var(--component-color-red-bg);
+}
+
+.node-toolbar-color-swatch.color-orange {
+  background: var(--component-color-orange-bg);
+}
+
+.node-toolbar-color-swatch.color-purple {
+  background: var(--component-color-purple-bg);
 }
 
 /* Node info dialog */

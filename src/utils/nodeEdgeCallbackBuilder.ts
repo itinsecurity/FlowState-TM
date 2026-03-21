@@ -7,7 +7,7 @@
  * handler references, and returns new arrays with the callbacks wired in.
  */
 
-import type { ThreatModel, ComponentType, Direction } from '../types/threatModel';
+import type { ThreatModel, ComponentType, ComponentColor, Direction } from '../types/threatModel';
 
 // ── Handler interface ────────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ export interface NodeEdgeCallbackHandlers {
   handleComponentNameChange: (componentRef: string, newName: string) => void;
   handleEditModeChange: (isEditing: boolean) => void;
   handleComponentTypeChange: (componentRef: string, newType: ComponentType) => void;
+  handleComponentColorChange: (componentRef: string, newColor: ComponentColor | undefined) => void;
   handleComponentDescriptionChange: (componentRef: string, newDescription: string) => void;
   handleComponentAssetsChange: (componentRef: string, newAssets: string[]) => void;
   handleCreateAsset: (name: string) => string | Promise<string>;
@@ -48,6 +49,7 @@ export function addCallbacksToNodesAndEdges(
     handleComponentNameChange,
     handleEditModeChange,
     handleComponentTypeChange,
+    handleComponentColorChange,
     handleComponentDescriptionChange,
     handleComponentAssetsChange,
     handleCreateAsset,
@@ -69,6 +71,7 @@ export function addCallbacksToNodesAndEdges(
           onNameChange: (newName: string) => handleComponentNameChange(node.id, newName),
           onEditModeChange: handleEditModeChange,
           onTypeChange: (newType: ComponentType) => handleComponentTypeChange(node.id, newType),
+          onColorChange: (newColor: ComponentColor | undefined) => handleComponentColorChange(node.id, newColor),
           onDescriptionChange: (newDescription: string) => handleComponentDescriptionChange(node.id, newDescription),
           onAssetsChange: (newAssets: string[]) => handleComponentAssetsChange(node.id, newAssets),
           onCreateAsset: handleCreateAsset,

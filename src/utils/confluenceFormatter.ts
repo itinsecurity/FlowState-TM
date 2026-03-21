@@ -120,14 +120,21 @@ export function generateConfluenceMarkup(
     html.push('<table border="1" cellpadding="8" cellspacing="0" style="width: 100%;">');
     html.push('<thead><tr>');
     html.push('<th style="background-color: #FFEBE6; text-align: left;" data-cell-background="#ffebe6" colorname="Light red" data-colwidth="200"><b>Threat Name</b></th>');
-    html.push('<th style="background-color: #FFEBE6; text-align: left;" data-cell-background="#ffebe6" colorname="Light red" data-colwidth="600"><b>Threat Description</b></th>');
+    html.push('<th style="background-color: #FFEBE6; text-align: left;" data-cell-background="#ffebe6" colorname="Light red" data-colwidth="400"><b>Threat Description</b></th>');
+    html.push('<th style="background-color: #FFEBE6; text-align: left;" data-cell-background="#ffebe6" colorname="Light red" data-colwidth="200"><b>Status</b></th>');
     html.push('</tr></thead>');
     html.push('<tbody>');
     threatModel.threats.forEach((threat) => {
       const description = threat.description || '';
+      const statusParts: string[] = [];
+      if (threat.status) statusParts.push(escapeHtml(threat.status));
+      if (threat.status_note) statusParts.push(escapeHtml(threat.status_note));
+      if (threat.status_link) statusParts.push(`<a href="${escapeHtml(threat.status_link)}">${escapeHtml(threat.status_link)}</a>`);
+      const statusCell = statusParts.join('<br>');
       html.push('<tr>');
       html.push(`<td><b>${escapeHtml(threat.name)}</b></td>`);
       html.push(`<td>${escapeHtml(description)}</td>`);
+      html.push(`<td>${statusCell}</td>`);
       html.push('</tr>');
     });
     html.push('</tbody></table>');
@@ -140,8 +147,9 @@ export function generateConfluenceMarkup(
     html.push('<table border="1" cellpadding="8" cellspacing="0" style="width: 100%;">');
     html.push('<thead><tr>');
     html.push('<th style="background-color: #E3FCEF; text-align: left;" data-cell-background="#e3fcef" colorname="Light green" data-colwidth="200"><b>Control Name</b></th>');
-    html.push('<th style="background-color: #E3FCEF; text-align: left;" data-cell-background="#e3fcef" colorname="Light green" data-colwidth="400"><b>Control Description</b></th>');
-    html.push('<th style="background-color: #E3FCEF; text-align: left;" data-cell-background="#e3fcef" colorname="Light green" data-colwidth="200"><b>Mitigates</b></th>');
+    html.push('<th style="background-color: #E3FCEF; text-align: left;" data-cell-background="#e3fcef" colorname="Light green" data-colwidth="300"><b>Control Description</b></th>');
+    html.push('<th style="background-color: #E3FCEF; text-align: left;" data-cell-background="#e3fcef" colorname="Light green" data-colwidth="150"><b>Mitigates</b></th>');
+    html.push('<th style="background-color: #E3FCEF; text-align: left;" data-cell-background="#e3fcef" colorname="Light green" data-colwidth="150"><b>Status</b></th>');
     html.push('</tr></thead>');
     html.push('<tbody>');
     threatModel.controls.forEach((control) => {
@@ -154,10 +162,16 @@ export function generateConfluenceMarkup(
             })
             .join(', ')
         : '';
+      const statusParts: string[] = [];
+      if (control.status) statusParts.push(escapeHtml(control.status));
+      if (control.status_note) statusParts.push(escapeHtml(control.status_note));
+      if (control.status_link) statusParts.push(`<a href="${escapeHtml(control.status_link)}">${escapeHtml(control.status_link)}</a>`);
+      const statusCell = statusParts.join('<br>');
       html.push('<tr>');
       html.push(`<td><b>${escapeHtml(control.name)}</b></td>`);
       html.push(`<td>${escapeHtml(description)}</td>`);
       html.push(`<td>${escapeHtml(mitigates)}</td>`);
+      html.push(`<td>${statusCell}</td>`);
       html.push('</tr>');
     });
     html.push('</tbody></table>');

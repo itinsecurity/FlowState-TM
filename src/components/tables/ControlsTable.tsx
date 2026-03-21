@@ -53,6 +53,18 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
 
   const controls = threatModel?.controls || [];
 
+  function focusCell(controlRef: string, columnIndex: number): void {
+    const key = `${controlRef}-${columnIndex}`;
+    const element = cellRefs.current.get(key);
+    if (element) {
+      // For all columns, find the focusable element inside
+      const focusable = element.querySelector('[tabindex="0"], input, textarea') as HTMLElement;
+      if (focusable) {
+        focusable.focus();
+      }
+    }
+  }
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -96,18 +108,6 @@ const ControlsTable = React.memo(forwardRef<ControlsTableRef, ControlsTableProps
       shouldFocusNewControl.current = false;
     }
   }, [controls]);
-
-  const focusCell = (controlRef: string, columnIndex: number) => {
-    const key = `${controlRef}-${columnIndex}`;
-    const element = cellRefs.current.get(key);
-    if (element) {
-      // For all columns, find the focusable element inside
-      const focusable = element.querySelector('[tabindex="0"], input, textarea') as HTMLElement;
-      if (focusable) {
-        focusable.focus();
-      }
-    }
-  };
 
   const handleTabPress = (controlRef: string, columnIndex: number, shiftKey: boolean) => {
     const controlIndex = controls.findIndex((c) => c.ref === controlRef);

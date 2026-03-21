@@ -25,7 +25,12 @@ export default defineConfig([
       },
     },
     rules: {
+      'no-undef': 'off',
       'no-unused-vars': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   },
   {

@@ -82,6 +82,7 @@ export function useDataFlowReconnection({
   }, [phase, edgeId, sourceNodeId, sourceHandleId, targetNodeId, targetHandleId, focusedNodeId, focusedHandleId]);
   
   const resetState = useCallback(() => {
+    if (stateRef.current.phase === 'idle') return;
     setPhase('idle');
     setEdgeId(null);
     setSourceNodeId(null);

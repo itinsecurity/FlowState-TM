@@ -1,8 +1,9 @@
 import React from 'react';
-import { BookDashed, Download, FileText, Settings, Save, Code2, Moon, Sun, Undo2, Redo2, Plus, Wand2, Upload, Database, Github, FolderGit2, HardDrive, FileOutput, Link, Copy, Image, Timer, TimerOff, HelpCircle } from 'lucide-react';
+import { BookDashed, Download, FileText, Settings, Save, Code2, Moon, Sun, Undo2, Redo2, Plus, Wand2, Upload, Database, Github, FolderGit2, HardDrive, FileOutput, Link, Copy, Image, Timer, TimerOff, HelpCircle, Bug, Lightbulb } from 'lucide-react';
 import { NavbarDropdown } from './NavbarDropdown';
 import { SourceType } from '../filebrowser/SourceSelector';
 import { useSaveState } from '../../contexts/SaveStateContext';
+import { REPO_URL } from '../../config';
 
 import './Navbar.css';
 
@@ -166,8 +167,10 @@ export function Navbar({
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="FlowState TM" className="navbar-logo" style={{ width: 28, height: 28 }} />
-        <h1 className="navbar-title">FlowState TM</h1>
+        <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="navbar-logo-link" title="Open repository">
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="FlowState TM" className="navbar-logo" style={{ width: 28, height: 28 }} />
+          <h1 className="navbar-title">FlowState TM</h1>
+        </a>
       </div>
 
       <div className="navbar-center">
@@ -314,6 +317,16 @@ export function Navbar({
               label: 'Help & Tutorials',
               icon: <HelpCircle size={16} />,
               onClick: () => onOpenTutorials?.(),
+            },
+            {
+              label: 'Report an Issue',
+              icon: <Bug size={16} />,
+              onClick: () => window.open(`${REPO_URL}/issues/new?template=bug_report.yml`, '_blank', 'noopener,noreferrer'),
+            },
+            {
+              label: 'Request a Feature',
+              icon: <Lightbulb size={16} />,
+              onClick: () => window.open(`${REPO_URL}/issues/new?template=feature_request.yml`, '_blank', 'noopener,noreferrer'),
             },
             {
               label: isDarkMode ? 'Light Mode' : 'Dark Mode',

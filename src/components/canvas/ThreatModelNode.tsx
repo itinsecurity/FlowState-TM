@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Handle, Position, NodeToolbar } from '@xyflow/react';
 import type { ThreatModelNodeData } from '../../utils/flowTransformer';
-import type { ComponentType } from '../../types/threatModel';
+import type { ComponentColor, ComponentType } from '../../types/threatModel';
 import EditablePicker from '../tables/EditablePicker';
 import { isComponentNamePlaceholder } from '../../utils/refGenerators';
 import './ThreatModelNode.css';
@@ -12,6 +12,15 @@ const COMPONENT_TYPES: { value: ComponentType; label: string; className: string 
   { value: 'data_store', label: 'Data Store', className: 'type-datastore' },
 ];
 
+const COMPONENT_COLORS: { value: ComponentColor; label: string; className: string }[] = [
+  { value: 'red', label: 'Red', className: 'color-red' },
+  { value: 'orange', label: 'Orange', className: 'color-orange' },
+  { value: 'yellow', label: 'Yellow', className: 'color-yellow' },
+  { value: 'green', label: 'Green', className: 'color-green' },
+  { value: 'blue', label: 'Blue', className: 'color-blue' },
+  { value: 'purple', label: 'Purple', className: 'color-purple' },
+];
+
 /**
  * Custom node component for threat model components
  * Renders different styles based on component type:
@@ -19,11 +28,11 @@ const COMPONENT_TYPES: { value: ComponentType; label: string; className: string 
  * - external: Sharp rectangle
  * - data_store: Parallel lines (top and bottom)
  */
-export default function ThreatModelNode({ data, selected }: { data: ThreatModelNodeData; selected?: boolean }): React.JSX.Element {
+export default memo(function ThreatModelNode({ data, selected }: { data: ThreatModelNodeData; selected?: boolean }): React.JSX.Element {
   const { 
     label, 
-    ref, 
     componentType, 
+    color,
     description, 
     assets, 
     availableAssets, 
@@ -36,6 +45,7 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
     onNameChange, 
     onEditModeChange, 
     onTypeChange, 
+    onColorChange,
     onDescriptionChange, 
     onAssetsChange, 
     onCreateAsset,
@@ -74,14 +84,16 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
 
   // Determine node class based on component type
   const getNodeClass = (): string => {
+    const colorClass = color ? ` component-color-${color}` : '';
+
     switch (componentType) {
       case 'external':
-        return 'threat-node external-dependency';
+        return `threat-node external-dependency${colorClass}`;
       case 'data_store':
-        return 'threat-node data-store';
+        return `threat-node data-store${colorClass}`;
       case 'internal':
       default:
-        return 'threat-node internal';
+        return `threat-node internal${colorClass}`;
     }
   };
 
@@ -200,6 +212,10 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
 
   const handleTypeChange = (newType: ComponentType): void => {
     onTypeChange?.(newType);
+  };
+
+  const handleColorChange = (newColor: ComponentColor): void => {
+    onColorChange?.(color === newColor ? undefined : newColor);
   };
 
   const handleAssetsChange = (newAssets: string[]): void => {
@@ -323,17 +339,36 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
         <>
           {/* Component type selector - top of node */}
           <NodeToolbar position={Position.Top} className="node-toolbar-top">
-            {COMPONENT_TYPES.map((type) => (
-              <button
-                key={type.value}
-                className={`node-toolbar-button ${type.className}${componentType === type.value ? ' active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleTypeChange(type.value);
-                }}
-                title={type.label}
-              />
-            ))}
+            <div className="node-toolbar-row">
+              {COMPONENT_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  className={`node-toolbar-button ${type.className}${componentType === type.value ? ' active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTypeChange(type.value);
+                  }}
+                  title={type.label}
+                  aria-label={type.label}
+                  type="button"
+                />
+              ))}
+            </div>
+            <div className="node-toolbar-row node-toolbar-color-row">
+              {COMPONENT_COLORS.map((componentColor) => (
+                <button
+                  key={componentColor.value}
+                  className={`node-toolbar-color-swatch ${componentColor.className}${color === componentColor.value ? ' active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleColorChange(componentColor.value);
+                  }}
+                  title={componentColor.label}
+                  aria-label={componentColor.label}
+                  type="button"
+                />
+              ))}
+            </div>
           </NodeToolbar>
           
           {/* Info dialog - bottom of node */}
@@ -347,11 +382,6 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
               }}
             >
               <div className="node-info-dialog-content">
-                <div className="node-info-field">
-                  <label>Ref</label>
-                  <div className="node-info-ref">{ref}</div>
-                </div>
-                
                 <div className="node-info-field">
                   <label>Description</label>
                   <textarea
@@ -401,4 +431,4 @@ export default function ThreatModelNode({ data, selected }: { data: ThreatModelN
       )}
     </div>
   );
-}
+});

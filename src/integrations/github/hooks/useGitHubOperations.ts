@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, type RefObject } from 'react';
 import { produce } from 'immer';
 import type { ThreatModel } from '../../../types/threatModel';
 import type {
@@ -24,7 +24,7 @@ interface YamlEditorRef {
 
 export interface UseGitHubOperationsOptions {
   yamlContent: string;
-  yamlEditorRef: React.RefObject<YamlEditorRef | null>;
+  yamlEditorRef: RefObject<YamlEditorRef | null>;
   threatModel: ThreatModel | null;
   githubDomain: GitHubDomain;
   githubMetadata: GitHubMetadata | null;
@@ -45,6 +45,8 @@ export interface UseGitHubOperationsOptions {
   setShowSyncModal: (show: boolean) => void;
   syncResult: SyncResult | null;
   setSyncResult: (result: SyncResult | null) => void;
+  /** Unique draft key for this tab/session */
+  draftKey: string;
 }
 
 export interface UseGitHubOperationsReturn {
@@ -85,6 +87,7 @@ export function useGitHubOperations({
   setShowSyncModal,
   syncResult,
   setSyncResult,
+  draftKey,
 }: UseGitHubOperationsOptions): UseGitHubOperationsReturn {
 
   const applyControlSyncResults = useCallback((controlSyncs: SyncResult['controlsSynced']) => {
@@ -156,25 +159,24 @@ export function useGitHubOperations({
       throw new Error('No content to commit');
     }
 
-    try {
-      // Get API client
-      let client = getApiClient();
+    // Get API client
+    let client = getApiClient();
+    if (!client) {
+      client = await requirePat('commit');
       if (!client) {
-        client = await requirePat('commit');
-        if (!client) {
-          throw new Error('GitHub authentication required');
-        }
+        throw new Error('GitHub authentication required');
       }
+    }
 
-      // Derive base name from the YAML path for consistent naming
-      // e.g., ".threat-models/my-model.yaml" → "my-model"
-      const pathDir = path.substring(0, path.lastIndexOf('/') + 1); // ".threat-models/"
-      const yamlFilename = path.substring(path.lastIndexOf('/') + 1); // "my-model.yaml"
-      const baseName = yamlFilename.replace(/\.(yaml|yml)$/i, ''); // "my-model"
+    // Derive base name from the YAML path for consistent naming
+    // e.g., ".threat-models/my-model.yaml" → "my-model"
+    const pathDir = path.substring(0, path.lastIndexOf('/') + 1); // ".threat-models/"
+    const yamlFilename = path.substring(path.lastIndexOf('/') + 1); // "my-model.yaml"
+    const baseName = yamlFilename.replace(/\.(yaml|yml)$/i, ''); // "my-model"
 
-      if (extraFiles?.includeDiagramImage || extraFiles?.includeMarkdownFile) {
-        // Multi-file commit using Git Data API
-        const files: CommitFile[] = [];
+    if (extraFiles?.includeDiagramImage || extraFiles?.includeMarkdownFile) {
+      // Multi-file commit using Git Data API
+      const files: CommitFile[] = [];
 
         // Always include the YAML file
         files.push({
@@ -272,6 +274,7 @@ export function useGitHubOperations({
         // Update autosave draft with new metadata
         const now = Date.now();
         await saveAutoSaveDraft(
+          draftKey,
           threatModel?.name || 'Untitled',
           content,
           updatedMetadata,
@@ -283,17 +286,17 @@ export function useGitHubOperations({
         const ghSource: SaveSource = { type: 'github', metadata: updatedMetadata };
         markSaved(ghSource, now);
         showToast(`Successfully committed ${fileCount} file${fileCount > 1 ? 's' : ''} to ${owner}/${repo}`, 'success');
-      } else {
-        // Single-file commit (original behavior)
-        const response = await client.createOrUpdateFile(
-          owner,
-          repo,
-          path,
-          content,
-          commitMessage,
-          branch,
-          sha
-        );
+    } else {
+      // Single-file commit (original behavior)
+      const response = await client.createOrUpdateFile(
+        owner,
+        repo,
+        path,
+        content,
+        commitMessage,
+        branch,
+        sha
+      );
 
         // Create updated metadata with new SHA and timestamp
         const updatedMetadata: GitHubMetadata = {
@@ -322,6 +325,7 @@ export function useGitHubOperations({
         // Update autosave draft with new metadata
         const now = Date.now();
         await saveAutoSaveDraft(
+          draftKey,
           threatModel?.name || 'Untitled',
           content,
           updatedMetadata,
@@ -329,14 +333,11 @@ export function useGitHubOperations({
           now
         );
 
-        showToast(`Successfully committed to ${owner}/${repo}`, 'success');
-        const ghSource: SaveSource = { type: 'github', metadata: updatedMetadata };
-        markSaved(ghSource, now);
-      }
-    } catch (error) {
-      throw error; // Re-throw to let modal handle the error display
+      showToast(`Successfully committed to ${owner}/${repo}`, 'success');
+      const ghSource: SaveSource = { type: 'github', metadata: updatedMetadata };
+      markSaved(ghSource, now);
     }
-  }, [yamlContent, githubDomain, threatModel, getApiClient, requirePat, setGitHubMetadata, captureDiagram, markSaved, yamlEditorRef, showToast]);
+  }, [yamlContent, githubDomain, threatModel, getApiClient, requirePat, setGitHubMetadata, captureDiagram, markSaved, yamlEditorRef, showToast, draftKey]);
 
   const getCommitApiClient = useCallback(() => requirePat('commit'), [requirePat]);
 
@@ -420,7 +421,7 @@ export function useGitHubOperations({
       setGitHubMetadata(updatedMetadata);
 
       // Save to autosave
-      await saveAutoSaveDraft(parsed.name || 'Untitled', content, updatedMetadata);
+      await saveAutoSaveDraft(draftKey, parsed.name || 'Untitled', content, updatedMetadata);
 
       // Clean up PAT after successful load
       cleanupPat();
@@ -432,7 +433,7 @@ export function useGitHubOperations({
       // Clean up PAT even on error
       cleanupPat();
     }
-  }, [githubMetadata, getApiClient, setThreatModel, setYamlContent, setGitHubMetadata, cleanupPat, showToast, setShowSyncModal]);
+  }, [githubMetadata, getApiClient, setThreatModel, setYamlContent, setGitHubMetadata, cleanupPat, showToast, setShowSyncModal, draftKey]);
 
   const handleSyncModalCancel = useCallback(() => {
     setShowSyncModal(false);

@@ -1,17 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import type { ComponentType } from '../types/threatModel';
 
-interface SectionCollapseStates {
-  isWorkingSectionCollapsed: boolean;
-  setIsWorkingSectionCollapsed: (collapsed: boolean) => void;
-  isThreatsSectionCollapsed: boolean;
-  setIsThreatsSectionCollapsed: (collapsed: boolean) => void;
-  isControlsSectionCollapsed: boolean;
-  setIsControlsSectionCollapsed: (collapsed: boolean) => void;
-  isSummarySectionCollapsed: boolean;
-  setIsSummarySectionCollapsed: (collapsed: boolean) => void;
-}
-
 interface UseKeyboardShortcutsOptions {
   undo: () => void;
   redo: () => void;
@@ -25,14 +14,30 @@ interface UseKeyboardShortcutsOptions {
   quickSaveRef: RefObject<(() => Promise<void>) | null>;
   mousePositionRef: RefObject<{ x: number; y: number }>;
   reactFlowInstanceRef: RefObject<any>;
-  sectionCollapseStates: SectionCollapseStates;
+  toggleAllSections: () => void;
   handleAddComponent: (componentType: ComponentType, position?: { x: number; y: number }) => void;
   handleAddBoundary: (position?: { x: number; y: number }) => void;
+  handleCopySelection: () => Promise<void> | void;
+  handlePasteSelection: () => Promise<void> | void;
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable ||
+    target.closest('[contenteditable="true"]') !== null
+  );
 }
 
 /**
  * Hook that registers all global keyboard shortcuts for the threat model editor:
  * - Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z: undo/redo
+ * - Cmd/Ctrl+C / Cmd/Ctrl+V: copy/paste selected canvas nodes
  * - Cmd/Ctrl+S: quick save
  * - `-`: toggle all table sections
  * - `e`: enter edit mode on selected node/edge
@@ -52,21 +57,12 @@ export function useKeyboardShortcuts({
   quickSaveRef,
   mousePositionRef,
   reactFlowInstanceRef,
-  sectionCollapseStates,
+  toggleAllSections,
   handleAddComponent,
   handleAddBoundary,
+  handleCopySelection,
+  handlePasteSelection,
 }: UseKeyboardShortcutsOptions): void {
-  const {
-    isWorkingSectionCollapsed,
-    setIsWorkingSectionCollapsed,
-    isThreatsSectionCollapsed,
-    setIsThreatsSectionCollapsed,
-    isControlsSectionCollapsed,
-    setIsControlsSectionCollapsed,
-    isSummarySectionCollapsed,
-    setIsSummarySectionCollapsed,
-  } = sectionCollapseStates;
-
   // Keyboard shortcuts for undo/redo, save, section toggles, edit mode, and arrow key movement
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -74,11 +70,7 @@ export function useKeyboardShortcuts({
       const isCtrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
 
       // Check if user is typing in an input/textarea
-      const target = event.target as HTMLElement;
-      const isEditing =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.contentEditable === 'true';
+      const isEditing = isEditableTarget(event.target);
 
       if (isCtrlOrCmd && !isEditing) {
         if (event.shiftKey && event.key.toLowerCase() === 'z') {
@@ -89,6 +81,14 @@ export function useKeyboardShortcuts({
           // Cmd/Ctrl + Z = Undo
           event.preventDefault();
           undo();
+        } else if (event.key.toLowerCase() === 'c') {
+          // Cmd/Ctrl + C = Copy selected canvas nodes
+          event.preventDefault();
+          void handleCopySelection();
+        } else if (event.key.toLowerCase() === 'v') {
+          // Cmd/Ctrl + V = Paste copied canvas nodes
+          event.preventDefault();
+          void handlePasteSelection();
         }
       }
 
@@ -101,25 +101,7 @@ export function useKeyboardShortcuts({
       // Press '-' to toggle all table sections
       if (event.key === '-' && !isEditing && !isCtrlOrCmd) {
         event.preventDefault();
-        // Check if all sections are currently collapsed or expanded
-        const allCollapsed =
-          isWorkingSectionCollapsed &&
-          isThreatsSectionCollapsed &&
-          isControlsSectionCollapsed &&
-          isSummarySectionCollapsed;
-        const allExpanded =
-          !isWorkingSectionCollapsed &&
-          !isThreatsSectionCollapsed &&
-          !isControlsSectionCollapsed &&
-          !isSummarySectionCollapsed;
-
-        // If all are collapsed or mixed state, expand all. If all are expanded, collapse all.
-        const shouldExpand = allCollapsed || !allExpanded;
-
-        setIsWorkingSectionCollapsed(!shouldExpand);
-        setIsThreatsSectionCollapsed(!shouldExpand);
-        setIsControlsSectionCollapsed(!shouldExpand);
-        setIsSummarySectionCollapsed(!shouldExpand);
+        toggleAllSections();
       }
 
       // Press 'e' to start edit mode on selected node or edge
@@ -268,26 +250,16 @@ export function useKeyboardShortcuts({
     isEditingMode,
     arrowKeyMovedNodesRef,
     quickSaveRef,
-    isWorkingSectionCollapsed,
-    isThreatsSectionCollapsed,
-    isControlsSectionCollapsed,
-    isSummarySectionCollapsed,
-    setIsWorkingSectionCollapsed,
-    setIsThreatsSectionCollapsed,
-    setIsControlsSectionCollapsed,
-    setIsSummarySectionCollapsed,
+    toggleAllSections,
+    handleCopySelection,
+    handlePasteSelection,
   ]);
 
   // Keyboard hotkeys for creating components (1-4)
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       // Ignore if user is typing in an input, textarea, or contenteditable
-      const target = event.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (isEditableTarget(event.target)) {
         return;
       }
 

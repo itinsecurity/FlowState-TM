@@ -23,6 +23,8 @@ interface ThreatsTableProps {
   onThreatStatusChange: (ref: string, newStatus: ThreatStatus | undefined) => void;
   onThreatStatusLinkChange: (ref: string, newLink: string | undefined) => void;
   onThreatStatusNoteChange: (ref: string, newNote: string | undefined) => void;
+  onControlMitigatesChange: (ref: string, newThreats: string[]) => void;
+  onCreateControl: (name: string) => string | Promise<string>;
   onRemoveThreat: (ref: string) => void;
   onAddThreat: () => void;
   onReorderThreats: (newOrder: string[]) => void;
@@ -45,6 +47,8 @@ const ThreatsTable = React.memo(forwardRef<ThreatsTableRef, ThreatsTableProps>(f
   onThreatStatusChange,
   onThreatStatusLinkChange,
   onThreatStatusNoteChange,
+  onControlMitigatesChange,
+  onCreateControl,
   onRemoveThreat,
   onAddThreat,
   onReorderThreats,
@@ -55,6 +59,29 @@ const ThreatsTable = React.memo(forwardRef<ThreatsTableRef, ThreatsTableProps>(f
   const shouldFocusNewThreat = useRef(false);
   const previousThreatCount = useRef(threatModel?.threats?.length || 0);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  function focusCell(cellKey: string): void {
+    const cell = cellRefs.current.get(cellKey);
+    if (cell) {
+      // First try to find input/textarea for editable cells
+      const input = cell.querySelector('input, textarea');
+      if (input) {
+        (input as HTMLElement).focus();
+      } else {
+        // For MultiPickerCell or other focusable elements, focus the cell itself or its first focusable child
+        const focusable = cell.querySelector('[tabindex]') as HTMLElement;
+        if (focusable) {
+          focusable.focus();
+        } else {
+          // If no focusable element found, make the cell itself focusable and focus it
+          const divWithTabIndex = cell.querySelector('div[tabindex="0"]') as HTMLElement;
+          if (divWithTabIndex) {
+            divWithTabIndex.focus();
+          }
+        }
+      }
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -112,29 +139,6 @@ const ThreatsTable = React.memo(forwardRef<ThreatsTableRef, ThreatsTableProps>(f
     
     previousThreatCount.current = currentThreatCount;
   }, [threatModel?.threats]);
-
-  const focusCell = (cellKey: string): void => {
-    const cell = cellRefs.current.get(cellKey);
-    if (cell) {
-      // First try to find input/textarea for editable cells
-      const input = cell.querySelector('input, textarea');
-      if (input) {
-        (input as HTMLElement).focus();
-      } else {
-        // For MultiPickerCell or other focusable elements, focus the cell itself or its first focusable child
-        const focusable = cell.querySelector('[tabindex]') as HTMLElement;
-        if (focusable) {
-          focusable.focus();
-        } else {
-          // If no focusable element found, make the cell itself focusable and focus it
-          const divWithTabIndex = cell.querySelector('div[tabindex="0"]') as HTMLElement;
-          if (divWithTabIndex) {
-            divWithTabIndex.focus();
-          }
-        }
-      }
-    }
-  };
 
   const handleTabPress = (threatRef: string, cellType: 'name' | 'description' | 'items' | 'status', shiftKey: boolean): void => {
     const threats = threatModel?.threats || [];
@@ -245,6 +249,35 @@ const ThreatsTable = React.memo(forwardRef<ThreatsTableRef, ThreatsTableProps>(f
     }
   };
 
+  const getRelatedControlRefs = (threatRef: string): string[] => {
+    return (threatModel?.controls || [])
+      .filter((control) => control.mitigates?.includes(threatRef))
+      .map((control) => control.ref);
+  };
+
+  const handleThreatControlsChange = (threatRef: string, nextControlRefs: string[]): void => {
+    const controls = threatModel?.controls || [];
+    const previousControlRefs = getRelatedControlRefs(threatRef);
+    const previousRefSet = new Set(previousControlRefs);
+    const nextRefSet = new Set(nextControlRefs);
+
+    controls.forEach((control) => {
+      const wasSelected = previousRefSet.has(control.ref);
+      const isSelected = nextRefSet.has(control.ref);
+
+      if (wasSelected === isSelected) {
+        return;
+      }
+
+      const currentThreats = control.mitigates || [];
+      const updatedThreats = isSelected
+        ? (currentThreats.includes(threatRef) ? currentThreats : [...currentThreats, threatRef])
+        : currentThreats.filter((ref) => ref !== threatRef);
+
+      onControlMitigatesChange(control.ref, updatedThreats);
+    });
+  };
+
   return (
     <div className="table-section">
       <div className="table-header">
@@ -343,6 +376,15 @@ const ThreatsTable = React.memo(forwardRef<ThreatsTableRef, ThreatsTableProps>(f
                         placeholder: 'Add data flow...',
                         variant: 'dataflows',
                         onChange: (newDataFlows) => onThreatAffectedDataFlowsChange(threat.ref, newDataFlows),
+                      },
+                      {
+                        label: 'Controls',
+                        value: getRelatedControlRefs(threat.ref),
+                        availableItems: threatModel?.controls?.map((control) => ({ ref: control.ref, name: control.name })) || [],
+                        placeholder: 'Add control...',
+                        variant: 'controls',
+                        onChange: (newControls) => handleThreatControlsChange(threat.ref, newControls),
+                        onCreateItem: onCreateControl,
                       },
                     ] satisfies PickerSection[]}
                   />

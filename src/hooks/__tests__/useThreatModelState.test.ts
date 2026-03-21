@@ -304,6 +304,23 @@ describe('useThreatModelState', () => {
       expect(result.current.nodes[0].data.componentType).toBe('external');
     });
 
+    it('should update component color and sync with nodes', () => {
+      const { result } = renderHook(() => useThreatModelState());
+
+      act(() => {
+        result.current.setThreatModel(mockThreatModel);
+        result.current.setNodes(mockNodes);
+        result.current.setYamlContent('name: Test');
+      });
+
+      act(() => {
+        result.current.handleComponentColorChange('comp-1', 'red');
+      });
+
+      expect(result.current.threatModel?.components[0].color).toBe('red');
+      expect(result.current.nodes[0].data.color).toBe('red');
+    });
+
     it('should update component description and sync with nodes', () => {
       const { result } = renderHook(() => useThreatModelState());
 

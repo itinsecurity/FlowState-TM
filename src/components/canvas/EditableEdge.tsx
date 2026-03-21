@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, ReactNode } from 'react';
+import React, { useState, useRef, useEffect, ReactNode, memo } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -21,7 +21,7 @@ interface EditableEdgeProps {
   selected?: boolean;
 }
 
-export default function EditableEdge({
+export default memo(function EditableEdge({
   id,
   sourceX,
   sourceY,
@@ -237,4 +237,4 @@ export default function EditableEdge({
       </EdgeLabelRenderer>
     </>
   );
-}
+});

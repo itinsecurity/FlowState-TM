@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FolderGit2, GitBranch, Search, ChevronDown, Loader2 } from 'lucide-react';
 import { GitHubApiClient } from './githubApi';
 
@@ -41,7 +41,7 @@ export function RepositoryBranchSelector({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Load accessible repositories on demand
-  const loadRepositories = async () => {
+  const loadRepositories = useCallback(async () => {
     if (hasLoadedRepos || loadingRepos || !apiClient) {
       return;
     }
@@ -62,7 +62,7 @@ export function RepositoryBranchSelector({
     } finally {
       setLoadingRepos(false);
     }
-  };
+  }, [apiClient, hasLoadedRepos, loadingRepos]);
 
   // Load more repositories
   const handleLoadMoreRepos = useCallback(async () => {
@@ -133,11 +133,14 @@ export function RepositoryBranchSelector({
     if (apiClient && !hasLoadedRepos && !loadingRepos && repositories.length <= 1) {
       loadRepositories();
     }
-  }, [apiClient, hasLoadedRepos, loadingRepos, repositories.length]);
+  }, [apiClient, hasLoadedRepos, loadingRepos, repositories.length, loadRepositories]);
 
   // Reset branch loading state when owner/repository changes
+  const prevRepoKeyRef = useRef(`${selectedOwner}/${selectedRepo}`);
   useEffect(() => {
-    if (hasLoadedBranches) {
+    const repoKey = `${selectedOwner}/${selectedRepo}`;
+    if (repoKey !== prevRepoKeyRef.current) {
+      prevRepoKeyRef.current = repoKey;
       setHasLoadedBranches(false);
       setBranches([]);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 // @ts-ignore - NodeResizer is available but type declarations may not be properly loaded
 import { NodeResizer } from '@xyflow/react';
 import { isBoundaryNamePlaceholder } from '../../utils/refGenerators';
@@ -18,7 +18,7 @@ export interface BoundaryNodeData {
  * Renders as a resizable container with red dotted border and transparent background
  * Note: Resizing is handled by React Flow's built-in resizable node feature
  */
-export default function BoundaryNode({ data, selected }: { data: BoundaryNodeData; selected?: boolean }): React.JSX.Element {
+export default memo(function BoundaryNode({ data, selected }: { data: BoundaryNodeData; selected?: boolean }): React.JSX.Element {
   const { label, initialEditMode, onNameChange, onEditModeChange, onResizeEnd } = data;
   const [isEditing, setIsEditing] = useState(initialEditMode || false);
   const [isHovering, setIsHovering] = useState(false);
@@ -163,4 +163,4 @@ export default function BoundaryNode({ data, selected }: { data: BoundaryNodeDat
       </div>
     </>
   );
-}
+});

@@ -2,12 +2,13 @@
  * useAutoSave Hook
  * Provides debounced auto-save functionality.
  * Supports three targets:
- *  - 'draft' (default): saves to the singleton IndexedDB autosave draft
+ *  - 'draft' (default): saves to a per-session IndexedDB autosave draft
  *  - 'browser': overwrites the active browser-storage entry in-place
  *  - 'file': writes to the active local-file handle via File System Access API
  *
  * In 'browser' and 'file' modes the ephemeral draft is ALSO written as a
- * crash-recovery safety net.
+ * crash-recovery safety net. Each browser tab uses a unique draft key to
+ * avoid overwriting drafts from other tabs.
  */
 
 import { useEffect, useRef } from 'react';
@@ -47,6 +48,8 @@ export interface AutoSaveOptions {
   isDirty?: boolean;
   /** Called after a successful file write with the new file lastModified timestamp */
   onFileWritten?: (lastModified: number) => void;
+  /** Unique draft key for this tab/session (from generateDraftKey) */
+  draftKey?: string;
 }
 
 /**
@@ -74,6 +77,7 @@ export function useAutoSave(
     lastSavedToSourceAt,
     isDirty,
     onFileWritten,
+    draftKey,
   } = options;
 
   const timeoutRef = useRef<number | null>(null);
@@ -94,6 +98,7 @@ export function useAutoSave(
   const onSaveRef = useRef(onSave);
   const onErrorRef = useRef(onError);
   const onFileWrittenRef = useRef(onFileWritten);
+  const draftKeyRef = useRef(draftKey);
 
   autoSaveToBrowserRef.current = autoSaveToBrowser;
   autoSaveToFileRef.current = autoSaveToFile;
@@ -105,6 +110,7 @@ export function useAutoSave(
   onSaveRef.current = onSave;
   onErrorRef.current = onError;
   onFileWrittenRef.current = onFileWritten;
+  draftKeyRef.current = draftKey;
 
   useEffect(() => {
     // Update metadata ref when it changes, even if we're not saving
@@ -137,15 +143,18 @@ export function useAutoSave(
           lastSavedToSourceAtRef.current = Date.now();
         }
 
-        // Always write the draft as a safety net
-        await saveAutoSaveDraft(
-          name,
-          content,
-          githubMetadata ?? undefined,
-          saveSourceMetaRef.current,
-          lastSavedToSourceAtRef.current,
-          isDirtyRef.current
-        );
+        // Always write the draft as a safety net (keyed per-tab)
+        if (draftKeyRef.current) {
+          await saveAutoSaveDraft(
+            draftKeyRef.current,
+            name,
+            content,
+            githubMetadata ?? undefined,
+            saveSourceMetaRef.current,
+            lastSavedToSourceAtRef.current,
+            isDirtyRef.current
+          );
+        }
 
         // Auto-save to browser storage if enabled and active
         if (autoSaveToBrowserRef.current && browserModelIdRef.current) {

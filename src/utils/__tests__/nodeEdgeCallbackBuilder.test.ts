@@ -7,6 +7,7 @@ function createHandlers(): NodeEdgeCallbackHandlers {
     handleComponentNameChange: vi.fn(),
     handleEditModeChange: vi.fn(),
     handleComponentTypeChange: vi.fn(),
+    handleComponentColorChange: vi.fn(),
     handleComponentDescriptionChange: vi.fn(),
     handleComponentAssetsChange: vi.fn(),
     handleCreateAsset: vi.fn(),
@@ -58,6 +59,7 @@ describe('addCallbacksToNodesAndEdges', () => {
     // Verify bound callbacks exist as functions
     expect(typeof node.data.onNameChange).toBe('function');
     expect(typeof node.data.onTypeChange).toBe('function');
+    expect(typeof node.data.onColorChange).toBe('function');
     expect(typeof node.data.onDescriptionChange).toBe('function');
     expect(typeof node.data.onAssetsChange).toBe('function');
     expect(typeof node.data.onSelectNode).toBe('function');
@@ -97,6 +99,18 @@ describe('addCallbacksToNodesAndEdges', () => {
     result.nodes[0].data.onDescriptionChange('A web application');
 
     expect(handlers.handleComponentDescriptionChange).toHaveBeenCalledWith('comp-1', 'A web application');
+  });
+
+  it('calls handleComponentColorChange with correct nodeId', () => {
+    const handlers = createHandlers();
+    const nodes = [
+      { id: 'comp-1', type: 'threatModelNode', data: { label: 'Web App' } },
+    ];
+
+    const result = addCallbacksToNodesAndEdges(nodes, [], baseModel, handlers);
+    result.nodes[0].data.onColorChange('red');
+
+    expect(handlers.handleComponentColorChange).toHaveBeenCalledWith('comp-1', 'red');
   });
 
   it('calls handleComponentAssetsChange with correct nodeId', () => {

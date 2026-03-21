@@ -44,8 +44,11 @@ export interface AutoSaveDraft {
 }
 
 const AUTOSAVE_KEY = 'autosave-draft';
+const AUTOSAVE_PREFIX = 'autosave-draft-';
+const SESSION_DRAFT_KEY = 'flowstate-draft-key';
 const MODEL_PREFIX = 'threat-model-';
 const MIGRATION_FLAG = 'indexeddb-migrated';
+const MAX_DRAFTS = 10;
 
 /**
  * Save a threat model to IndexedDB
@@ -176,9 +179,32 @@ export const duplicateModelInBrowserStorage = async (
 };
 
 /**
- * Save auto-save draft (current state only)
+ * Get or create a unique draft key for this browser tab.
+ * Uses sessionStorage so the key survives page refreshes within the
+ * same tab, but each tab gets its own isolated key.
+ */
+export const getOrCreateSessionDraftKey = (): string => {
+  const existing = sessionStorage.getItem(SESSION_DRAFT_KEY);
+  if (existing) return existing;
+  const key = `${AUTOSAVE_PREFIX}${crypto.randomUUID()}`;
+  sessionStorage.setItem(SESSION_DRAFT_KEY, key);
+  return key;
+};
+
+/**
+ * Generate a new unique draft key (without storing it).
+ * Prefer getOrCreateSessionDraftKey() in component code.
+ */
+export const generateDraftKey = (): string => {
+  return `${AUTOSAVE_PREFIX}${crypto.randomUUID()}`;
+};
+
+/**
+ * Save auto-save draft to a per-session IndexedDB key.
+ * @param draftKey - Unique key for this draft (from generateDraftKey)
  */
 export const saveAutoSaveDraft = async (
+  draftKey: string,
   name: string,
   content: string,
   githubMetadata?: GitHubMetadata,
@@ -195,30 +221,58 @@ export const saveAutoSaveDraft = async (
     ...(lastSavedToSourceAt && { lastSavedToSourceAt }),
     ...(isDirty !== undefined && { isDirty }),
   };
-  await set(AUTOSAVE_KEY, draft);
+  await set(draftKey, draft);
 };
 
 /**
- * Get auto-save draft
+ * Get a specific auto-save draft by key.
  */
-export const getAutoSaveDraft = async (): Promise<AutoSaveDraft | null> => {
-  const draft = await get<AutoSaveDraft>(AUTOSAVE_KEY);
+export const getAutoSaveDraft = async (draftKey: string): Promise<AutoSaveDraft | null> => {
+  const draft = await get<AutoSaveDraft>(draftKey);
   return draft || null;
 };
 
 /**
- * Clear auto-save draft
+ * Clear a specific auto-save draft by key.
  */
-export const clearAutoSaveDraft = async (): Promise<void> => {
-  await del(AUTOSAVE_KEY);
+export const clearAutoSaveDraft = async (draftKey: string): Promise<void> => {
+  await del(draftKey);
 };
 
 /**
- * Check if auto-save draft exists
+ * Get all auto-save drafts from IndexedDB, sorted newest-first.
+ * Scans for both legacy singleton key and per-session prefixed keys.
  */
-export const hasAutoSaveDraft = async (): Promise<boolean> => {
-  const draft = await get(AUTOSAVE_KEY);
-  return draft !== undefined;
+export const getAllAutoSaveDrafts = async (): Promise<Array<{ key: string; draft: AutoSaveDraft }>> => {
+  const allEntries = await entries<string, AutoSaveDraft>();
+  return allEntries
+    .filter(([key]) => key.startsWith(AUTOSAVE_PREFIX) || key === AUTOSAVE_KEY)
+    .map(([key, draft]) => ({ key, draft }))
+    .sort((a, b) => b.draft.savedAt - a.draft.savedAt);
+};
+
+/**
+ * Prune auto-save drafts to keep at most `maxCount` (default MAX_DRAFTS).
+ * Removes the oldest drafts beyond the limit.
+ */
+export const pruneAutoSaveDrafts = async (maxCount: number = MAX_DRAFTS): Promise<void> => {
+  const drafts = await getAllAutoSaveDrafts();
+  if (drafts.length <= maxCount) return;
+  const toDelete = drafts.slice(maxCount);
+  await Promise.all(toDelete.map(({ key }) => del(key)));
+};
+
+/**
+ * Migrate the legacy singleton 'autosave-draft' key to a prefixed key.
+ * Safe to call multiple times — no-ops if already migrated.
+ */
+export const migrateSingletonDraft = async (): Promise<string | null> => {
+  const legacy = await get<AutoSaveDraft>(AUTOSAVE_KEY);
+  if (!legacy) return null;
+  const newKey = `${AUTOSAVE_PREFIX}migrated`;
+  await set(newKey, legacy);
+  await del(AUTOSAVE_KEY);
+  return newKey;
 };
 
 /**

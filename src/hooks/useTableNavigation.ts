@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from 'react';
+import { type RefObject } from 'react';
 import type { ThreatModel } from '../types/threatModel';
 import { mapAssetsToThreatsColumn, mapThreatsToAssetsColumn, mapThreatsToControlsColumn, mapControlsToThreatsColumn } from '../utils/navigationHelpers';
 
@@ -44,69 +44,69 @@ export function useTableNavigation({
   threatModel,
 }: UseTableNavigationOptions) {
   // Title and Description navigation callbacks
-  const handleTitleNavigate = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+  const handleTitleNavigate = (direction: 'up' | 'down' | 'left' | 'right') => {
     if (direction === 'down') {
       descriptionInputRef.current?.focus();
     }
-  }, []);
+  };
 
-  const handleTitleTabPress = useCallback((shiftKey: boolean) => {
+  const handleTitleTabPress = (shiftKey: boolean) => {
     if (!shiftKey) {
       descriptionInputRef.current?.focus();
     }
-  }, []);
+  };
 
-  const handleDescriptionNavigate = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+  const handleDescriptionNavigate = (direction: 'up' | 'down' | 'left' | 'right') => {
     if (direction === 'up') {
       titleInputRef.current?.focus();
     } else if (direction === 'down') {
       participantsInputRef.current?.focus();
     }
-  }, []);
+  };
 
-  const handleDescriptionTabPress = useCallback((shiftKey: boolean) => {
+  const handleDescriptionTabPress = (shiftKey: boolean) => {
     if (shiftKey) {
       titleInputRef.current?.focus();
     } else {
       participantsInputRef.current?.focus();
     }
-  }, []);
+  };
 
   // Participants navigation callbacks
-  const handleParticipantsNavigate = useCallback((direction: 'up' | 'down') => {
+  const handleParticipantsNavigate = (direction: 'up' | 'down') => {
     if (direction === 'up') {
       descriptionInputRef.current?.focus();
     } else if (direction === 'down') {
       componentsTableRef.current?.focusCellByColumn('name', 0);
     }
-  }, []);
+  };
 
-  const handleParticipantsTabPress = useCallback((shiftKey: boolean) => {
+  const handleParticipantsTabPress = (shiftKey: boolean) => {
     if (shiftKey) {
       descriptionInputRef.current?.focus();
     } else {
       componentsTableRef.current?.focusCellByColumn('name', 0);
     }
-  }, []);
+  };
 
   // Components navigation callbacks
-  const handleComponentsNavigateToNextTable = useCallback((column: 'name' | 'type' | 'description' | 'assets') => {
+  const handleComponentsNavigateToNextTable = (column: 'name' | 'type' | 'description' | 'assets') => {
     const targetColumn = column === 'type' ? 'name' : (column === 'assets' ? 'description' : column);
     assetsTableRef.current?.focusCellByColumn(targetColumn as 'name' | 'description', 0);
-  }, []);
+  };
 
-  const handleComponentsNavigateToPreviousTable = useCallback((_column: 'name' | 'type' | 'description' | 'assets') => {
+  const handleComponentsNavigateToPreviousTable = (_column: 'name' | 'type' | 'description' | 'assets') => {
     // Navigate back to participants field
     participantsInputRef.current?.focus();
-  }, []);
+  };
 
   // Assets navigation callbacks
-  const handleAssetsNavigateToNextTable = useCallback((column: 'name' | 'description') => {
+  const handleAssetsNavigateToNextTable = (column: 'name' | 'description') => {
     const targetColumn = mapAssetsToThreatsColumn(column);
     threatsTableRef.current?.focusCellByColumn(targetColumn, 0);
-  }, []);
+  };
 
-  const handleAssetsNavigateToPreviousTable = useCallback((column: 'name' | 'description') => {
+  const handleAssetsNavigateToPreviousTable = (column: 'name' | 'description') => {
     // Navigate back to components table, mapping to the appropriate column
     const components = threatModel?.components || [];
     if (components.length > 0) {
@@ -116,26 +116,26 @@ export function useTableNavigation({
     } else {
       descriptionInputRef.current?.focus();
     }
-  }, [threatModel?.components]);
+  };
 
   // Threats navigation callbacks
-  const handleThreatsNavigateToNextTable = useCallback((column: 'name' | 'description' | 'items' | 'status') => {
+  const handleThreatsNavigateToNextTable = (column: 'name' | 'description' | 'items' | 'status') => {
     const targetColumnIndex = mapThreatsToControlsColumn(column);
     controlsTableRef.current?.focusCellByColumnIndex(targetColumnIndex, 0);
-  }, []);
+  };
 
-  const handleThreatsNavigateToPreviousTable = useCallback((column: 'name' | 'description' | 'items' | 'status') => {
+  const handleThreatsNavigateToPreviousTable = (column: 'name' | 'description' | 'items' | 'status') => {
     const targetColumn = mapThreatsToAssetsColumn(column);
     assetsTableRef.current?.focusCellByColumn(targetColumn, (threatModel?.assets?.length || 1) - 1);
-  }, [threatModel?.assets?.length]);
+  };
 
-  const handleControlsNavigateToPreviousTable = useCallback((columnIndex: number) => {
+  const handleControlsNavigateToPreviousTable = (columnIndex: number) => {
     const targetColumn = mapControlsToThreatsColumn(columnIndex);
     threatsTableRef.current?.focusCellByColumn(targetColumn, (threatModel?.threats?.length || 1) - 1);
-  }, [threatModel?.threats?.length]);
+  };
 
   // Architecture navigation callbacks
-  const handleArchitectureNavigateToPreviousTable = useCallback((table: 'boundary' | 'dataflow', column: string) => {
+  const handleArchitectureNavigateToPreviousTable = (table: 'boundary' | 'dataflow', column: string) => {
     // When navigating up from architecture section
     const assets = threatModel?.assets || [];
     const boundaries = threatModel?.boundaries || [];
@@ -163,9 +163,9 @@ export function useTableNavigation({
         assetsTableRef.current?.focusCellByColumn(targetColumn, assets.length - 1);
       }
     }
-  }, [threatModel?.assets, threatModel?.boundaries]);
+  };
 
-  const handleArchitectureNavigateToNextTable = useCallback((table: 'boundary' | 'dataflow', column: string) => {
+  const handleArchitectureNavigateToNextTable = (table: 'boundary' | 'dataflow', column: string) => {
     // When navigating down from architecture section (only from data flows), go to threats
     if (table === 'dataflow') {
       // Map data flow columns to threats columns
@@ -173,7 +173,7 @@ export function useTableNavigation({
       const targetColumn: 'name' | 'description' | 'items' = column === 'label' ? 'description' : 'name';
       threatsTableRef.current?.focusCellByColumn(targetColumn, 0);
     }
-  }, []);
+  };
 
   return {
     handleTitleNavigate,

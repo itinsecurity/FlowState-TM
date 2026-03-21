@@ -1,0 +1,398 @@
+schema_version: '1.0'
+name: Bikes as a Service
+description: |
+  We are developing a bike rental solution (Bikes as a Service, BaaS). BaaS supports the following use-cases:
+  Alice, an existing customer, wants to get from here to there. She opens the BaaS app, and gets directions to a nearby bike. She scans a QR code on the bike, and the app sends her userid and the bikeid to the cloud.
+  
+  The cloud validates all that, and starts a billing timer. It then sends an unlock code that allows Alice to physically unlock the bike and ride it where she wants to go. 
+  
+  When she arrives, she locks the bike, and gets a notification on her phone that her ride is complete, and what it cost. She is asked to rate the bike to enable us to service broken or degraded bikes quickly.
+
+# Components - Represents the objects in a threat model (users, applications, databases, etc.)
+components:
+  - ref: user
+    name: User
+    component_type: external
+    x: -15
+    y: 3
+    description: The end user of the bike service and the app (concierges are also app end users).
+    assets: [user-credentials, user-personal-information, payment-card-data]
+
+  - ref: ios-app
+    name: IOS App
+    component_type: internal
+    x: -15
+    y: 127
+    description: The mobile app. Our first product launch will be iOS only.
+    assets: [user-credentials, payment-card-data, ride-history, bike-location-data, bike-condition-ratings]
+
+  - ref: mobile-network
+    name: Mobile Network
+    component_type: external
+    x: -18
+    y: 250
+    description: Public carrier of the communications between the cloud service, the app, and the bikes.
+
+  - ref: baas-cloud
+    name: BaaS Cloud
+    component_type: internal
+    x: -18
+    y: 412
+    description: The backend service that receives REST API calls from the app, and sends command to the bike computer.
+    assets: [user-credentials, user-personal-information, billing-transaction-records, ride-history, bike-unlock-codes, bike-location-data]
+
+  - ref: image-reader
+    name: Image reader
+    component_type: internal
+    x: -18
+    y: 537
+    description: The image processing function for OCRing images of credit cards and processing images of the bikes for damage  placement etc.
+    assets: [payment-card-data, bike-condition-ratings]
+
+  - ref: payment-service
+    name: Payment Service
+    component_type: external
+    x: 224
+    y: 490
+    description: An external payment provider we use to process our card payments and collect our money.
+    assets: [payment-card-data, billing-transaction-records]
+
+  - ref: it-operator-sysadmin
+    name: IT Operator / SysAdmin
+    component_type: external
+    x: -234
+    y: 245
+    description: Our internal IT staff that manage our cloud platform.
+    assets: [admin-credentials]
+
+  - ref: database
+    name: Database
+    component_type: data_store
+    x: -229
+    y: 412
+    description: "Where we keep all our data; users, bikes, payments, maps and all other BaaS service related info we keep. "
+    assets: [user-credentials, user-personal-information, billing-transaction-records, ride-history, bike-location-data, bike-condition-ratings]
+
+  - ref: in-bike-computer
+    name: In-bike computer
+    component_type: internal
+    x: 224
+    y: 249
+    description: A Raspberry PI style computer running busybox linux. A GPS receiver, 4G modem, and a sensor to indicate if the magnet in the lock is in the receiver. Owned and built by us. Attached to bike, but not user accessible.
+    assets: [bike-unlock-codes, bike-location-data]
+
+  - ref: magnet-lock-hatch
+    name: Magnet lock & hatch
+    component_type: external
+    x: 224
+    y: 351
+    description: A computer-controlled latch to allow a customer to manually open the lock. This actuator is controlled by the bike computer via a message from the cloud service.
+
+# Assets - Represents data or resources that need protection
+assets:
+  - ref: user-credentials
+    name: User Credentials
+    description: User authentication data including userids, passwords, and session tokens used to access the BaaS app.
+
+  - ref: payment-card-data
+    name: Payment Card Data
+    description: Credit card numbers and related PCI data captured via the image reader OCR and sent to the payment service.
+
+  - ref: user-personal-information
+    name: User Personal Information
+    description: Personally identifiable information such as name, email, phone number, and profile details.
+
+  - ref: billing-transaction-records
+    name: Billing & Transaction Records
+    description: Ride cost calculations, billing timer data, payment transaction history, and invoices.
+
+  - ref: bike-location-data
+    name: Bike Location Data
+    description: Real-time and historical GPS coordinates of each bike, reported by the in-bike computer.
+
+  - ref: bike-unlock-codes
+    name: Bike Unlock Codes
+    description: One-time codes sent from the cloud to the in-bike computer to actuate the magnet lock and release the bike.
+
+  - ref: ride-history
+    name: Ride History
+    description: Records of rides including which user rode which bike, start/end locations, timestamps, and duration.
+
+  - ref: bike-condition-ratings
+    name: Bike Condition & Ratings
+    description: User-submitted ratings and damage images used to identify bikes needing maintenance or repair.
+
+  - ref: admin-credentials
+    name: Admin Credentials
+    description: IT operator and sysadmin authentication credentials used to manage the BaaS cloud platform.
+
+# Data Flows - Represents connections between components with data flowing between them
+data_flows:
+  - ref: user->ios-app
+    source: user
+    destination: ios-app
+    label: DF1
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+
+  - ref: ios-app->mobile-network
+    source: ios-app
+    destination: mobile-network
+    label: DF2
+    source_point: bottom-2
+    destination_point: top-2
+    direction: unidirectional
+
+  - ref: mobile-network<->baas-cloud
+    source: mobile-network
+    destination: baas-cloud
+    label: DF3
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+
+  - ref: baas-cloud<->database
+    source: baas-cloud
+    destination: database
+    label: DF4
+    source_point: left-2
+    destination_point: right-2
+    direction: bidirectional
+
+  - ref: baas-cloud<->image-reader
+    source: baas-cloud
+    destination: image-reader
+    label: DF5
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+
+  - ref: baas-cloud<->payment-service
+    source: baas-cloud
+    destination: payment-service
+    label: DF6
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+
+  - ref: mobile-network<->in-bike-computer
+    source: mobile-network
+    destination: in-bike-computer
+    label: DF7
+    source_point: right-2
+    destination_point: left-2
+    direction: bidirectional
+
+  - ref: in-bike-computer<->magnet-lock-hatch
+    source: in-bike-computer
+    destination: magnet-lock-hatch
+    label: DF8
+    source_point: bottom-2
+    destination_point: top-2
+    direction: bidirectional
+
+  - ref: it-operator-sysadmin->baas-cloud
+    source: it-operator-sysadmin
+    destination: baas-cloud
+    label: DF9
+    source_point: bottom-2
+    destination_point: top-1
+    direction: unidirectional
+
+# Boundaries - Represents trust boundaries in the system
+boundaries:
+  - ref: baas-cloud-2
+    name: BaaS Cloud
+    x: -244
+    y: 383
+    width: 430
+    height: 226
+    components: [baas-cloud, image-reader, database]
+
+  - ref: bike-computer
+    name: Bike computer
+    x: 204
+    y: 219
+    width: 178
+    height: 93
+    components: [in-bike-computer]
+
+  - ref: phone
+    name: Phone
+    x: -35
+    y: 99
+    width: 178
+    height: 93
+    components: [ios-app]
+
+# Threats - Represents potential security threats to the system
+threats:
+  - ref: user-identity-spoofing
+    name: User Identity Spoofing
+    description: |
+      Attacker steals or guesses user credentials to rent bikes under someone else's account.
+      This enables free rides billed to the victim and access to their PII and ride history.
+    affected_components: [ios-app, baas-cloud]
+    affected_data_flows: [ios-app->mobile-network, mobile-network<->baas-cloud]
+    affected_assets: [user-credentials, billing-transaction-records, user-personal-information]
+
+  - ref: qr-code-spoofing
+    name: QR Code Spoofing
+    description: |
+      Attacker places a fraudulent QR code over the legitimate one on a bike.
+      Scanning it could redirect the user to a phishing site that harvests credentials or payment card data.
+    affected_components: [user, ios-app]
+    affected_data_flows: [user->ios-app]
+    affected_assets: [user-credentials, payment-card-data]
+
+  - ref: unlock-code-interception
+    name: Unlock Code Interception
+    description: |
+      Attacker intercepts the unlock code sent over the mobile network to the in-bike computer.
+      This allows unauthorized unlocking and theft of bikes without a valid rental session.
+    affected_components: [mobile-network, in-bike-computer, magnet-lock-hatch]
+    affected_data_flows: [mobile-network<->in-bike-computer, in-bike-computer<->magnet-lock-hatch]
+    affected_assets: [bike-unlock-codes]
+
+  - ref: api-request-tampering
+    name: API Request Tampering
+    description: |
+      Attacker intercepts and modifies REST API calls between the app and the cloud service.
+      Could manipulate billing timers, ride data, or bike ratings to avoid charges or cause incorrect maintenance actions.
+    affected_components: [baas-cloud]
+    affected_data_flows: [mobile-network<->baas-cloud]
+    affected_assets: [billing-transaction-records, ride-history, bike-condition-ratings]
+
+  - ref: payment-card-data-exposure
+    name: Payment Card Data Exposure
+    description: |
+      Credit card images processed by the image reader could be stored insecurely or logged, exposing PCI-regulated card data.
+      A breach would result in regulatory penalties and customer financial harm.
+    affected_components: [image-reader, baas-cloud]
+    affected_data_flows: [baas-cloud<->image-reader, baas-cloud<->payment-service]
+    affected_assets: [payment-card-data]
+
+  - ref: user-location-tracking
+    name: User Location Tracking
+    description: |
+      Bike GPS data and ride history can be correlated to track individual users' movements and routines.
+      Unauthorized access to this data represents a serious privacy violation.
+    affected_components: [database, in-bike-computer]
+    affected_data_flows: [mobile-network<->in-bike-computer, baas-cloud<->database]
+    affected_assets: [bike-location-data, ride-history]
+
+  - ref: ride-billing-repudiation
+    name: Ride Billing Repudiation
+    description: Attacker disputes legitimate ride charges claiming they never rented the bike. Without adequate logging and proof of the unlock event, the charge cannot be proven.
+    affected_components: [baas-cloud]
+    affected_assets: [billing-transaction-records, ride-history]
+
+  - ref: in-bike-computer-tampering
+    name: In-Bike Computer Tampering
+    description: |
+      Attacker gains physical access to the Raspberry Pi computer on the bike and extracts firmware, keys, or stored unlock codes.
+      Could replay unlock commands or spoof GPS location to mask bike theft.
+    affected_components: [in-bike-computer, magnet-lock-hatch]
+    affected_data_flows: [in-bike-computer<->magnet-lock-hatch]
+    affected_assets: [bike-unlock-codes, bike-location-data]
+
+  - ref: cloud-service-denial-of-service
+    name: Cloud Service Denial of Service
+    description: |
+      Attacker floods the BaaS cloud API with requests, making the service unavailable.
+      Users cannot unlock bikes, complete rides, or process payments during the outage.
+    affected_components: [baas-cloud]
+    affected_data_flows: [mobile-network<->baas-cloud]
+    affected_assets: [billing-transaction-records]
+
+  - ref: admin-privilege-escalation
+    name: Admin Privilege Escalation
+    description: |
+      Attacker compromises an IT operator account or exploits a vulnerability to gain administrative access to the cloud platform.
+      This grants full control over user data, billing, and bike fleet management.
+    affected_components: [baas-cloud, database]
+    affected_data_flows: [it-operator-sysadmin->baas-cloud, baas-cloud<->database]
+    affected_assets: [admin-credentials, user-personal-information, billing-transaction-records]
+
+# Controls - Represents security measures implemented to mitigate threats
+controls:
+  - ref: multi-factor-authentication
+    name: Multi-Factor Authentication
+    description: Require MFA for user login to prevent account takeover even if credentials are compromised.
+    mitigates: [user-identity-spoofing]
+    implemented_in: [ios-app, baas-cloud]
+    status: To Do
+
+  - ref: qr-code-signature-validation
+    name: QR Code Signature Validation
+    description: Embed a cryptographic signature in each QR code that the app verifies against the cloud before proceeding. Rejects forged or tampered QR codes.
+    mitigates: [qr-code-spoofing]
+    implemented_in: [ios-app, baas-cloud]
+    status: To Do
+
+  - ref: end-to-end-encryption-for-unlock-codes
+    name: End-to-End Encryption for Unlock Codes
+    description: |
+      Encrypt unlock codes end-to-end between the cloud service and the in-bike computer using pre-shared keys.
+      The mobile network carrier cannot read or replay the codes in transit.
+    mitigates: [unlock-code-interception]
+    implemented_in: [baas-cloud, in-bike-computer]
+    status: To Do
+
+  - ref: tls-certificate-pinning
+    name: TLS Certificate Pinning
+    description: Pin the BaaS cloud server certificate in the iOS app to prevent man-in-the-middle attacks on API traffic over the mobile network.
+    mitigates: [api-request-tampering, unlock-code-interception]
+    implemented_in: [ios-app]
+    status: To Do
+
+  - ref: pci-compliant-card-handling
+    name: PCI-Compliant Card Handling
+    description: |
+      Tokenize card data immediately after OCR and never store raw card numbers.
+      Ensure the image reader purges source images after processing. Use the payment provider's tokenization API.
+    mitigates: [payment-card-data-exposure]
+    implemented_in: [image-reader, baas-cloud]
+    status: To Do
+
+  - ref: location-data-minimization
+    name: Location Data Minimization
+    description: Retain GPS coordinates only for active rides and aggregate historical location data. Restrict access to location data to authorized services only.
+    mitigates: [user-location-tracking]
+    implemented_in: [baas-cloud, database]
+    status: To Do
+
+  - ref: immutable-audit-logging
+    name: Immutable Audit Logging
+    description: |
+      Log all unlock events, ride starts/stops, and billing actions in a tamper-evident audit log.
+      Provides non-repudiable evidence for billing disputes and security investigations.
+    mitigates: [ride-billing-repudiation, admin-privilege-escalation]
+    implemented_in: [baas-cloud]
+    status: To Do
+
+  - ref: physical-tamper-protection
+    name: Physical Tamper Protection
+    description: |
+      Enclose the in-bike computer in a tamper-evident casing with intrusion detection.
+      Wipe stored keys if the casing is breached. Disable the secure element on tamper detection.
+    mitigates: [in-bike-computer-tampering]
+    implemented_in: [in-bike-computer]
+    status: To Do
+
+  - ref: api-rate-limiting
+    name: API Rate Limiting
+    description: Enforce per-user and per-IP rate limits on the cloud API. Deploy a WAF and DDoS mitigation in front of the service.
+    mitigates: [cloud-service-denial-of-service]
+    implemented_in: [baas-cloud]
+    status: To Do
+
+  - ref: admin-access-controls
+    name: Admin Access Controls
+    description: |
+      Enforce MFA and role-based access control for all admin accounts.
+      Require VPN access for administrative operations and implement just-in-time privilege elevation.
+    mitigates: [admin-privilege-escalation]
+    implemented_in: [baas-cloud]
+    status: To Do

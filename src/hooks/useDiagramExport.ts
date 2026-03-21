@@ -53,7 +53,7 @@ function generateMarkdown(
     // Helper function to generate component node
     const generateComponentNode = (component: typeof threatModel.components[0], idx: number, indent: string = '    ') => {
       const nodeId = `C${idx}`;
-      const nodeName = String(component.name).replace(/["\[\]]/g, '');
+      const nodeName = String(component.name).replace(/[[\]"]/g, '');
       
       // Different shapes for different component types
       if (component.component_type === 'data_store') {
@@ -87,7 +87,7 @@ function generateMarkdown(
       const componentsInBoundaries = new Set<string>();
       
       threatModel.boundaries.forEach((boundary, boundaryIdx) => {
-        const boundaryName = String(boundary.name).replace(/["\[\]]/g, '');
+        const boundaryName = String(boundary.name).replace(/[[\]"]/g, '');
         
         if (boundary.components && boundary.components.length > 0) {
           lines.push(`    subgraph B${boundaryIdx}["${boundaryName}"]`);
@@ -144,7 +144,7 @@ function generateMarkdown(
         if (sourceIdx !== undefined && targetIdx !== undefined) {
           const sourceId = `C${sourceIdx}`;
           const targetId = `C${targetIdx}`;
-          const label = flow.label ? flow.label.replace(/["\[\]]/g, '') : '';
+          const label = flow.label ? flow.label.replace(/[[\]"]/g, '') : '';
           
           if (flow.direction === 'bidirectional') {
             lines.push(`    ${sourceId} <-->|${label}| ${targetId}`);

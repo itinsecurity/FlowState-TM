@@ -115,6 +115,11 @@
           "type": "string",
           "description": "Description of the component"
         },
+          "color": {
+            "type": "string",
+            "description": "Optional display color for the component",
+            "enum": ["red", "orange", "yellow", "green", "blue", "purple"]
+          },
         "assets": {
           "type": "array",
           "description": "References to assets processed or stored by this component",

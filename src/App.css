@@ -56,6 +56,14 @@
   --entity-controls-bg: #bbf7d0;
   --entity-controls-border: #22c55e;
   --entity-controls-text: #15803d;
+
+  /* Component color swatches */
+  --component-color-yellow-bg: #fef08a;
+  --component-color-blue-bg: #bfdbfe;
+  --component-color-green-bg: #bbf7d0;
+  --component-color-red-bg: #fecaca;
+  --component-color-orange-bg: #fed7aa;
+  --component-color-purple-bg: #e3b6fd;
   
   /* YAML Editor - Light mode */
   --yaml-bg: #f9fafb;
@@ -134,6 +142,14 @@
   --entity-controls-bg: #166534;
   --entity-controls-border: #15803d;
   --entity-controls-text: #bbf7d0;
+
+  /* Component color swatches - Dark mode */
+  --component-color-yellow-bg: #a16207;
+  --component-color-blue-bg: #1e3a8a;
+  --component-color-green-bg: #14532d;
+  --component-color-red-bg: #7f1d1d;
+  --component-color-orange-bg: #7c2d12;
+  --component-color-purple-bg: #6b21a8;
   
   /* YAML Editor - Dark mode */
   --yaml-bg: #111827;

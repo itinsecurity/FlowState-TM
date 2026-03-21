@@ -8,6 +8,7 @@ export type ComponentType = 'internal' | 'external' | 'data_store';
 /** @deprecated Use 'external' instead. Kept for backwards compatibility with existing YAML files. */
 export type LegacyComponentType = ComponentType | 'external_dependency';
 export type Direction = 'unidirectional' | 'bidirectional';
+export type ComponentColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
 
 export interface Asset {
   ref: string;
@@ -20,6 +21,7 @@ export interface Component {
   name: string;
   component_type: ComponentType;
   description?: string;
+  color?: ComponentColor;
   assets?: string[];
   x?: number;
   y?: number;

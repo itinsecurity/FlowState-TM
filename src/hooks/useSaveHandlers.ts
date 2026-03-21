@@ -1,4 +1,4 @@
-import { useCallback, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import type { ThreatModel } from '../types/threatModel';
 import type { GitHubMetadata, GitHubAction } from '../integrations/github/types';
 import type { SaveSource } from '../contexts/SaveStateContext';
@@ -34,6 +34,8 @@ interface UseSaveHandlersOptions {
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;
   setShowCommitModal: (show: boolean) => void;
   requirePat: (action: GitHubAction) => Promise<any>;
+  /** Unique draft key for this tab/session */
+  draftKey: string;
 }
 
 interface UseSaveHandlersReturn {
@@ -63,6 +65,7 @@ export function useSaveHandlers({
   showToast,
   setShowCommitModal,
   requirePat,
+  draftKey,
 }: UseSaveHandlersOptions): UseSaveHandlersReturn {
   const quickSaveRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -83,7 +86,7 @@ export function useSaveHandlers({
         const source: SaveSource = { type: 'browser', modelId: id, modelName: threatModel.name };
         // Update auto-save draft with current content (draft always persists for crash recovery)
         const now = Date.now();
-        await saveAutoSaveDraft(threatModel.name, content, githubMetadata ?? undefined, { type: 'browser', modelId: id, modelName: threatModel.name }, now);
+        await saveAutoSaveDraft(draftKey, threatModel.name, content, githubMetadata ?? undefined, { type: 'browser', modelId: id, modelName: threatModel.name }, now);
         markSaved(source, now);
         showToast(`Saved "${threatModel.name}" to browser storage`, 'success');
       } catch (error) {
@@ -109,7 +112,7 @@ export function useSaveHandlers({
           const source: SaveSource = { type: 'file', handle: localFileHandle, fileName: localFileHandle.name };
           // Update auto-save draft with current content (draft always persists for crash recovery)
           const now = Date.now();
-          await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: localFileHandle.name }, now);
+          await saveAutoSaveDraft(draftKey, threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: localFileHandle.name }, now);
           markSaved(source, now);
           showToast(`Saved to ${localFileHandle.name}`, 'success');
         } else {
@@ -124,7 +127,7 @@ export function useSaveHandlers({
               const source: SaveSource = { type: 'file', handle, fileName: handle.name };
               // Update auto-save draft with current content (draft always persists for crash recovery)
               const now = Date.now();
-              await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
+              await saveAutoSaveDraft(draftKey, threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
               markSaved(source, now);
               showToast(`Saved to ${handle.name}`, 'success');
             }
@@ -140,7 +143,7 @@ export function useSaveHandlers({
           const source: SaveSource = { type: 'file', handle, fileName: handle.name };
           // Update auto-save draft with current content (draft always persists for crash recovery)
           const now = Date.now();
-          await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
+          await saveAutoSaveDraft(draftKey, threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
           markSaved(source, now);
           showToast(`Saved to ${handle.name}`, 'success');
         }
@@ -167,7 +170,7 @@ export function useSaveHandlers({
         const source: SaveSource = { type: 'file', handle, fileName: handle.name };
         // Update auto-save draft with current content (draft always persists for crash recovery)
         const now = Date.now();
-        await saveAutoSaveDraft(threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
+        await saveAutoSaveDraft(draftKey, threatModel?.name || 'Untitled', content, githubMetadata ?? undefined, { type: 'file', fileName: handle.name }, now);
         markSaved(source, now);
         showToast(`Saved to ${handle.name}`, 'success');
       }
@@ -202,7 +205,7 @@ export function useSaveHandlers({
       const source: SaveSource = { type: 'browser', modelId: id, modelName: newName };
       // Update auto-save draft with current content (draft always persists for crash recovery)
       const now = Date.now();
-      await saveAutoSaveDraft(newName, content, githubMetadata ?? undefined, { type: 'browser', modelId: id, modelName: newName }, now);
+      await saveAutoSaveDraft(draftKey, newName, content, githubMetadata ?? undefined, { type: 'browser', modelId: id, modelName: newName }, now);
       markSaved(source, now);
       showToast(`Saved as "${newName}" to browser storage`, 'success');
     } catch (error) {
@@ -238,7 +241,9 @@ export function useSaveHandlers({
   }, [saveSource, handleSaveToBrowser, handleSaveToFile, handleCommitToGitHub]);
 
   // Keep ref in sync so keyboard shortcut always calls latest version
-  quickSaveRef.current = handleQuickSave;
+  useEffect(() => {
+    quickSaveRef.current = handleQuickSave;
+  }, [handleQuickSave]);
 
   return {
     handleSaveToBrowser,

@@ -86,6 +86,26 @@ const SummarySection: React.FC<SummarySectionProps> = ({
   const threats = threatModel.threats || [];
   const controls = threatModel.controls || [];
 
+  const getRelatedControls = (threatRef: string) => {
+    return controls.filter(control => control.mitigates?.includes(threatRef));
+  };
+
+  const getActiveRelatedControls = (threatRef: string) => {
+    return getRelatedControls(threatRef).filter(control => control.status !== 'Cancelled');
+  };
+
+  const getThreatResolutionReason = (threat: Threat) => {
+    if (threat.status === 'Accept') {
+      return 'Accepted';
+    }
+
+    if (threat.status === 'Dismiss') {
+      return 'Dismissed';
+    }
+
+    return 'All controls implemented';
+  };
+
   // Calculate threat status distribution
   const threatStatusCounts = {
     evaluate: threats.filter(t => t.status === 'Evaluate').length,
@@ -105,18 +125,19 @@ const SummarySection: React.FC<SummarySectionProps> = ({
   };
 
   // Calculate coverage metrics
-  const threatsWithControlsList = threats.filter(threat => {
-    return controls.some(control => control.mitigates?.includes(threat.ref) && control.status !== 'Cancelled');
+  const coverageEligibleThreats = threats.filter(
+    threat => threat.status !== 'Accept' && threat.status !== 'Dismiss'
+  );
+  const threatsWithControlsList = coverageEligibleThreats.filter(threat => {
+    return getActiveRelatedControls(threat.ref).length > 0;
   });
-  const threatsWithoutControlsList = threats.filter(threat => {
-    return !controls.some(control => control.mitigates?.includes(threat.ref) && control.status !== 'Cancelled');
+  const threatsWithoutControlsList = coverageEligibleThreats.filter(threat => {
+    return getActiveRelatedControls(threat.ref).length === 0;
   });
   const threatsWithControls = threatsWithControlsList.length;
 
   const unmitigatedThreatsList = threats.filter(threat => {
-    const hasNonCancelledControls = controls.some(
-      control => control.mitigates?.includes(threat.ref) && control.status !== 'Cancelled'
-    );
+    const hasNonCancelledControls = getActiveRelatedControls(threat.ref).length > 0;
     const isResolved = threat.status === 'Accept' || threat.status === 'Dismiss';
     return !hasNonCancelledControls && !isResolved;
   });
@@ -145,7 +166,7 @@ const SummarySection: React.FC<SummarySectionProps> = ({
       return true;
     }
     if (threat.status === 'Mitigate') {
-      const relatedControls = controls.filter(control => control.mitigates?.includes(threat.ref));
+      const relatedControls = getActiveRelatedControls(threat.ref);
       if (relatedControls.length === 0) {
         return false; // No controls, so not resolved
       }
@@ -154,7 +175,28 @@ const SummarySection: React.FC<SummarySectionProps> = ({
     }
     return false;
   });
-  const unresolvedThreatsList = threats.filter(threat => !resolvedThreatsList.includes(threat));
+  const threatsInResolutionEvaluateList = threats.filter(threat => threat.status === 'Evaluate');
+  const threatsWithNoStatusList = threats.filter(threat => !threat.status);
+  const mitigateThreatsWithoutControlsList = threats.filter(threat => {
+    if (threat.status !== 'Mitigate' || resolvedThreatsList.includes(threat)) {
+      return false;
+    }
+
+    return getActiveRelatedControls(threat.ref).length === 0;
+  });
+  const mitigateThreatsWithIncompleteControls = threats
+    .filter(threat => threat.status === 'Mitigate' && !resolvedThreatsList.includes(threat))
+    .map(threat => {
+      const incompleteControls = getActiveRelatedControls(threat.ref).filter(
+        control => control.status !== 'Done'
+      );
+
+      return {
+        threat,
+        incompleteControls,
+      };
+    })
+    .filter(({ incompleteControls }) => incompleteControls.length > 0);
   const resolvedThreats = resolvedThreatsList.length;
 
   const threatResolutionRate = threats.length > 0 
@@ -168,8 +210,8 @@ const SummarySection: React.FC<SummarySectionProps> = ({
   const implementedControlsList = controls.filter(c => c.status === 'Done' || c.status === 'Cancelled');
   const notImplementedControlsList = controls.filter(c => c.status !== 'Done' && c.status !== 'Cancelled');
 
-  const threatCoverageRate = threats.length > 0 
-    ? (threatsWithControls / threats.length) * 100 
+  const threatCoverageRate = coverageEligibleThreats.length > 0 
+    ? (threatsWithControls / coverageEligibleThreats.length) * 100 
     : 0;
 
   // Determine if we have critical action items
@@ -302,13 +344,13 @@ const SummarySection: React.FC<SummarySectionProps> = ({
                 <div className="summary-metric-label">Threats with Controls</div>
               </div>
               <div className="summary-metric-value">
-                <span className="summary-metric-main">{threatsWithControls} of {threats.length}</span>
-                {threats.length > 0 && (
+                <span className="summary-metric-main">{threatsWithControls} of {coverageEligibleThreats.length}</span>
+                {coverageEligibleThreats.length > 0 && (
                   <span className="summary-metric-percentage">({threatCoverageRate.toFixed(0)}%)</span>
                 )}
               </div>
             </div>
-            {threats.length > 0 && (
+            {coverageEligibleThreats.length > 0 && (
               <div className="summary-progress-bar">
                 <div 
                   className={getProgressBarClass(threatCoverageRate)}
@@ -318,6 +360,16 @@ const SummarySection: React.FC<SummarySectionProps> = ({
             )}
             {expandedMetrics.has('threatCoverage') && (
               <div className="summary-metric-details">
+                {threatsWithoutControlsList.length > 0 && (
+                  <div className="summary-metric-detail-section">
+                    <div className="summary-metric-detail-header">Without Controls ({threatsWithoutControlsList.length}):</div>
+                    <ul className="summary-metric-items-list">
+                      {threatsWithoutControlsList.map(threat => (
+                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {threatsWithControlsList.length > 0 && (
                   <div className="summary-metric-detail-section">
                     <div className="summary-metric-detail-header">With Controls ({threatsWithControlsList.length}):</div>
@@ -328,12 +380,57 @@ const SummarySection: React.FC<SummarySectionProps> = ({
                     </ul>
                   </div>
                 )}
-                {threatsWithoutControlsList.length > 0 && (
+              </div>
+            )}
+          </div>
+          <div className="summary-metric-row">
+            <div 
+              className="summary-metric-header summary-metric-expandable"
+              onClick={() => toggleMetric('controlImplementation')}
+            >
+              <div className="summary-metric-header-content">
+                {expandedMetrics.has('controlImplementation') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <div className="summary-metric-label">Control Resolution</div>
+              </div>
+              <div className="summary-metric-value">
+                <span className="summary-metric-main">
+                  {controlStatusCounts.done + controlStatusCounts.cancelled} of {controls.length}
+                </span>
+                {controls.length > 0 && (
+                  <span className="summary-metric-percentage">({controlCompletionRate.toFixed(0)}%)</span>
+                )}
+              </div>
+            </div>
+            {controls.length > 0 && (
+              <div className="summary-progress-bar">
+                <div 
+                  className={getProgressBarClass(controlCompletionRate)}
+                  style={{ width: `${controlCompletionRate}%` }}
+                />
+              </div>
+            )}
+            {expandedMetrics.has('controlImplementation') && (
+              <div className="summary-metric-details">
+                {notImplementedControlsList.length > 0 && (
                   <div className="summary-metric-detail-section">
-                    <div className="summary-metric-detail-header">Without Controls ({threatsWithoutControlsList.length}):</div>
+                    <div className="summary-metric-detail-header">Not Resolved ({notImplementedControlsList.length}):</div>
                     <ul className="summary-metric-items-list">
-                      {threatsWithoutControlsList.map(threat => (
-                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
+                      {notImplementedControlsList.map(control => (
+                        <li key={control.ref} className="summary-clickable-item" onClick={() => handleControlClick(control)}>
+                          {control.name} ({control.status || 'No Status'})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {implementedControlsList.length > 0 && (
+                  <div className="summary-metric-detail-section">
+                    <div className="summary-metric-detail-header">Resolved ({implementedControlsList.length}):</div>
+                    <ul className="summary-metric-items-list">
+                      {implementedControlsList.map(control => (
+                        <li key={control.ref} className="summary-clickable-item" onClick={() => handleControlClick(control)}>
+                          {control.name} ({control.status || 'No Status'})
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -369,22 +466,76 @@ const SummarySection: React.FC<SummarySectionProps> = ({
             )}
             {expandedMetrics.has('threatResolution') && (
               <div className="summary-metric-details">
+                {threatsWithNoStatusList.length > 0 && (
+                  <div className="summary-metric-detail-section">
+                    <div className="summary-metric-detail-header">
+                      Threats Without Status ({threatsWithNoStatusList.length}):
+                    </div>
+                    <ul className="summary-metric-items-list">
+                      {threatsWithNoStatusList.map(threat => (
+                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {threatsInResolutionEvaluateList.length > 0 && (
+                  <div className="summary-metric-detail-section">
+                    <div className="summary-metric-detail-header">
+                      Threats Under Evaluation ({threatsInResolutionEvaluateList.length}):
+                    </div>
+                    <ul className="summary-metric-items-list">
+                      {threatsInResolutionEvaluateList.map(threat => (
+                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {mitigateThreatsWithoutControlsList.length > 0 && (
+                  <div className="summary-metric-detail-section">
+                    <div className="summary-metric-detail-header">
+                      Threats Without Controls ({mitigateThreatsWithoutControlsList.length}):
+                    </div>
+                    <ul className="summary-metric-items-list">
+                      {mitigateThreatsWithoutControlsList.map(threat => (
+                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {mitigateThreatsWithIncompleteControls.length > 0 && (
+                  <div className="summary-metric-detail-section">
+                    <div className="summary-metric-detail-header">
+                      Threats with Incomplete Controls ({mitigateThreatsWithIncompleteControls.length}):
+                    </div>
+                    <ul className="summary-metric-items-list">
+                      {mitigateThreatsWithIncompleteControls.map(({ threat, incompleteControls }) => (
+                        <li key={threat.ref} className="summary-metric-threat-item">
+                          <div className="summary-clickable-item summary-metric-threat-name" onClick={() => handleThreatClick(threat)}>
+                            {threat.name}
+                          </div>
+                          {incompleteControls.length > 0 && (
+                            <ul className="summary-metric-controls-list">
+                              {incompleteControls.map(control => (
+                                <li key={control.ref} className="summary-clickable-item" onClick={() => handleControlClick(control)}>
+                                  {control.name} ({control.status || 'No Status'})
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {resolvedThreatsList.length > 0 && (
                   <div className="summary-metric-detail-section">
                     <div className="summary-metric-detail-header">Resolved ({resolvedThreatsList.length}):</div>
                     <ul className="summary-metric-items-list">
                       {resolvedThreatsList.map(threat => (
-                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {unresolvedThreatsList.length > 0 && (
-                  <div className="summary-metric-detail-section">
-                    <div className="summary-metric-detail-header">Not Resolved ({unresolvedThreatsList.length}):</div>
-                    <ul className="summary-metric-items-list">
-                      {unresolvedThreatsList.map(threat => (
-                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>{threat.name}</li>
+                        <li key={threat.ref} className="summary-clickable-item" onClick={() => handleThreatClick(threat)}>
+                          {threat.name} ({getThreatResolutionReason(threat)})
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -392,57 +543,7 @@ const SummarySection: React.FC<SummarySectionProps> = ({
               </div>
             )}
           </div>
-          <div className="summary-metric-row">
-            <div 
-              className="summary-metric-header summary-metric-expandable"
-              onClick={() => toggleMetric('controlImplementation')}
-            >
-              <div className="summary-metric-header-content">
-                {expandedMetrics.has('controlImplementation') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                <div className="summary-metric-label">Control Implementation</div>
-              </div>
-              <div className="summary-metric-value">
-                <span className="summary-metric-main">
-                  {controlStatusCounts.done + controlStatusCounts.cancelled} of {controls.length}
-                </span>
-                {controls.length > 0 && (
-                  <span className="summary-metric-percentage">({controlCompletionRate.toFixed(0)}%)</span>
-                )}
-              </div>
-            </div>
-            {controls.length > 0 && (
-              <div className="summary-progress-bar">
-                <div 
-                  className={getProgressBarClass(controlCompletionRate)}
-                  style={{ width: `${controlCompletionRate}%` }}
-                />
-              </div>
-            )}
-            {expandedMetrics.has('controlImplementation') && (
-              <div className="summary-metric-details">
-                {implementedControlsList.length > 0 && (
-                  <div className="summary-metric-detail-section">
-                    <div className="summary-metric-detail-header">Implemented ({implementedControlsList.length}):</div>
-                    <ul className="summary-metric-items-list">
-                      {implementedControlsList.map(control => (
-                        <li key={control.ref} className="summary-clickable-item" onClick={() => handleControlClick(control)}>{control.name}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {notImplementedControlsList.length > 0 && (
-                  <div className="summary-metric-detail-section">
-                    <div className="summary-metric-detail-header">Not Implemented ({notImplementedControlsList.length}):</div>
-                    <ul className="summary-metric-items-list">
-                      {notImplementedControlsList.map(control => (
-                        <li key={control.ref} className="summary-clickable-item" onClick={() => handleControlClick(control)}>{control.name}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+
         </div>
       </div>
 

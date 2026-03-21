@@ -12,6 +12,42 @@ When generating threat models, follow these guidelines to create structured YAML
 
 All threat models must be valid YAML files following the threat model schema v1.0.
 
+### YAML String Formatting
+
+Use **plain (inline) strings** for short text that fits comfortably on one line:
+```yaml
+description: REST API handling business logic
+status_note: Implemented using ORM with built-in sanitization.
+```
+
+Use **pipe (`|`) block style** only when the text is long enough to benefit from multiple lines (roughly **3+ sentences or >120 characters**). Within a pipe block:
+- Only insert line breaks at **sentence boundaries** (after `.`, `!`, `?`).
+- Keep multiple shorter sentences on the **same line** if the line stays readable (~80–120 chars).
+- Do **not** break mid-sentence just to keep lines short.
+
+Good:
+```yaml
+description: |
+  Attacker exploits weak authentication to access API endpoints without valid credentials.
+  Could lead to unauthorized data access and manipulation of user accounts.
+```
+
+Bad — unnecessary pipe for short text:
+```yaml
+# Don't do this
+description: |
+  REST API handling business logic
+```
+
+Bad — breaking mid-sentence:
+```yaml
+# Don't do this
+description: |
+  Attacker exploits weak
+  authentication to access API
+  endpoints without valid credentials.
+```
+
 ## Structure Requirements
 
 ### Required Root Properties
@@ -63,7 +99,7 @@ components:
 
 ### 3. Data Flows
 Data flows represent connections between components. Each data flow must have:
-- `ref`: Unique identifier (can include `<->` or `->` for clarity)
+- `ref`: Must follow the format `source->destination` (unidirectional) or `source<->destination` (bidirectional), using the component refs
 - `source`: Component ref where data originates
 - `destination`: Component ref where data goes
 - `direction`: Either `unidirectional` or `bidirectional`
@@ -128,7 +164,7 @@ threats:
   - ref: api-auth-bypass
     name: API Authentication Bypass
     description: |
-      Attacker exploits weak authentication to access API endpoints without valid credentials. 
+      Attacker exploits weak authentication to access API endpoints without valid credentials.
       Could lead to unauthorized data access and manipulation of user accounts.
     affected_components: [api-server]
     affected_data_flows: [client<->api]
@@ -150,9 +186,7 @@ Example:
 controls:
   - ref: jwt-authentication
     name: JWT Authentication
-    description: |
-      Implement JWT-based authentication for all API endpoints.
-      Tokens expire after 1 hour and require refresh.
+    description: Implement JWT-based authentication for all API endpoints. Tokens expire after 1 hour and require refresh.
     mitigates: [api-auth-bypass]
     implemented_in: [api-server]
     status: In Progress
@@ -181,6 +215,94 @@ controls:
 - Be descriptive: `user-auth-db` not `db1`
 - For data flows, use arrows to indicate direction: `client->server` or `client<->server`
 - Keep refs concise but meaningful
+
+## Diagram Layout & Placement Rules
+
+Components are rendered as nodes approximately **140px wide × 80px tall**. Follow these rules to produce clean, legible diagrams.
+
+### Component Spacing
+- **Minimum horizontal spacing: 250px** between component x-coordinates
+- **Minimum vertical spacing: 125px** between component y-coordinates
+- Arrange components in a logical grid aligned to the data-flow direction (typically left-to-right or top-to-bottom)
+
+#### Adjusting for Long Component Names
+
+Node labels have a max-width of ~120px and wrap at word boundaries. At 14px font size this means roughly **15 characters per line**. When a name wraps to multiple lines the node grows taller, so you must increase the **vertical spacing** for any row that contains a long name:
+
+| Longest name in row | Lines | Row vertical spacing |
+|---|---|---|
+| ≤ 15 characters | 1 | 125px (default) |
+| 16–30 characters | 2 | 150px |
+| 31–45 characters | 3 | 175px |
+| > 45 characters | 4+ | 200px |
+
+Check every component **in the same row** (same y-value) — the row spacing is determined by the **tallest** (longest-named) component in that row.
+
+Example grid with mixed name lengths:
+| | Column 1 (x=0) | Column 2 (x=250) | Column 3 (x=500) |
+|---|---|---|---|
+| Row 1 (y=0), all short names | (0, 0) | (250, 0) | (500, 0) |
+| Row 2 (y=150), one 2-line name | (0, 150) | (250, 150) | (500, 150) |
+| Row 3 (y=325), one 3-line name | (0, 325) | (250, 325) | (500, 325) |
+
+Default grid positions (all short names):
+| | Column 1 (x=0) | Column 2 (x=250) | Column 3 (x=500) |
+|---|---|---|---|
+| Row 1 (y=0) | (0, 0) | (250, 0) | (500, 0) |
+| Row 2 (y=125) | (0, 125) | (250, 125) | (500, 125) |
+| Row 3 (y=250) | (0, 250) | (250, 250) | (500, 250) |
+
+### Data Flow Connection Points
+Always choose the **most direct** `source_point` and `destination_point` based on the relative positions of source and destination components. Use position `2` (center of side) for straight horizontal/vertical flows, and positions `1`/`3` for diagonal flows.
+
+| Relative direction | source_point | destination_point |
+|---|---|---|
+| Horizontal right (→) | `right-2` | `left-2` |
+| Horizontal left (←) | `left-2` | `right-2` |
+| Vertical down (↓) | `bottom-2` | `top-2` |
+| Vertical up (↑) | `top-2` | `bottom-2` |
+| Diagonal down-right (↘) | `bottom-3` | `top-1` |
+| Diagonal down-left (↙) | `bottom-1` | `top-3` |
+| Diagonal up-right (↗) | `top-3` | `bottom-1` |
+| Diagonal up-left (↖) | `top-1` | `bottom-3` |
+
+Position numbering: for `top`/`bottom` sides, `1` = left, `2` = center, `3` = right. For `left`/`right` sides, `1` = top, `2` = center, `3` = bottom.
+
+#### Avoiding Duplicate Connection Points
+
+Each connection point on a component can only be used **once** across all data flows (whether as `source_point` or `destination_point`). After choosing the ideal point from the direction table above, check whether that point is already claimed by another flow on the same component. If it is, pick an **adjacent position on the same side**:
+
+- If `left-2` is taken → use `left-1` or `left-3`
+- If `right-2` is taken → use `right-1` or `right-3`
+- If `top-2` is taken → use `top-1` or `top-3`
+- If `bottom-2` is taken → use `bottom-1` or `bottom-3`
+
+If all three positions on the preferred side are taken, use the next most logical side (e.g., if all `left-*` points are taken and the flow comes from the left, try `top-1` or `bottom-1`).
+
+### Boundary Sizing
+Boundaries must be sized to clearly enclose their components with consistent padding, avoiding ambiguity about which components are included or excluded. Use these formulas:
+
+```
+boundary_x      = min(component x values) - 15
+boundary_y      = min(component y values) - 30
+boundary_width  = (max_x - min_x) + 175
+boundary_height = (max_y - min_y) + base_height + tall_node_extra
+```
+
+Where:
+- `min_x`, `max_x`, `min_y`, `max_y` are the x/y coordinates of the enclosed components
+- `base_height` = 100 (default for single-line names)
+- `tall_node_extra` = additional height for the tallest node name in the **bottom row** of the boundary: +25px per extra line of text beyond the first (2-line name → +25, 3-line → +50)
+
+Examples (assuming default grid, all short names):
+- **Single component** at (250, 125): x=235, y=95, width=175, height=100
+- **Single row** at y=0, x from 0 to 500: x=-15, y=-30, width=675, height=100
+- **Single column** at x=0, y from 0 to 250: x=-15, y=-30, width=175, height=350
+- **All 9 components** (0,0)→(500,250): x=-15, y=-30, width=675, height=350
+
+Examples with long names:
+- **Single 2-line name** component at (250, 125): x=235, y=95, width=175, height=125
+- **Column** x=0, y from 0 to 250, bottom component has 3-line name: x=-15, y=-30, width=175, height=400
 
 ## Complete Example
 
@@ -250,10 +372,10 @@ boundaries:
     name: Internal Network
     description: Trusted internal network
     components: [web-app, database]
-    width: 180
+    width: 175
     height: 250
-    x: 275
-    y: -25
+    x: 285
+    y: -30
 
 # Threats - Potential security threats
 threats:
@@ -261,26 +383,21 @@ threats:
     name: SQL Injection
     description: |
       Attacker injects malicious SQL through user inputs.
-      This can lead to unauthorized data access, modification, or deletion.
-      Common attack vectors include login forms and search fields.
+      This can lead to unauthorized data access, modification, or deletion. Common attack vectors include login forms and search fields.
     affected_components: [web-app]
     affected_data_flows: [user<->web-app, web-app->database]
     affected_assets: [user-data]
 
   - ref: xss
     name: Cross-Site Scripting (XSS)
-    description: |
-      Attacker injects malicious scripts into web pages.
-      Can be used to steal session tokens or redirect users to malicious sites.
+    description: Attacker injects malicious scripts into web pages. Can be used to steal session tokens or redirect users to malicious sites.
     affected_components: [web-app]
     affected_data_flows: [user<->web-app]
     affected_assets: [session-info]
 
   - ref: session-hijacking
     name: Session Hijacking
-    description: |
-      Attacker steals or predicts session tokens to impersonate users.
-      Can occur through XSS, network sniffing, or weak token generation.
+    description: Attacker steals or predicts session tokens to impersonate users. Can occur through XSS, network sniffing, or weak token generation.
     affected_components: [web-app]
     affected_assets: [session-info]
 
@@ -288,9 +405,7 @@ threats:
 controls:
   - ref: input-validation
     name: Input Validation
-    description: |
-      Validate and sanitize all user inputs before processing.
-      Use parameterized queries to prevent SQL injection.
+    description: Validate and sanitize all user inputs before processing. Use parameterized queries to prevent SQL injection.
     mitigates: [sql-injection]
     implemented_in: [web-app]
     status: Done
@@ -298,9 +413,7 @@ controls:
 
   - ref: output-encoding
     name: Output Encoding
-    description: |
-      Encode all dynamic content before rendering in HTML.
-      Use Content Security Policy headers to prevent script injection.
+    description: Encode all dynamic content before rendering in HTML. Use Content Security Policy headers to prevent script injection.
     mitigates: [xss]
     implemented_in: [web-app]
     status: In Progress
@@ -309,8 +422,7 @@ controls:
   - ref: secure-session-management
     name: Secure Session Management
     description: |
-      Use cryptographically random session tokens.
-      Implement HTTPOnly and Secure cookie flags.
+      Use cryptographically random session tokens. Implement HTTPOnly and Secure cookie flags.
       Set appropriate session timeout and rotation policies.
     mitigates: [session-hijacking]
     implemented_in: [web-app]

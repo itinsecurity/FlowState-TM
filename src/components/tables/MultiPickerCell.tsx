@@ -11,9 +11,10 @@ export interface PickerSection {
   value: string[];
   availableItems: PickerItem[];
   placeholder: string;
-  variant: 'components' | 'dataflows' | 'assets' | 'threats';
+  variant: 'components' | 'dataflows' | 'assets' | 'threats' | 'controls';
   badgeClass?: string;
   onChange: (refs: string[]) => void;
+  onCreateItem?: (name: string) => string | Promise<string>;
 }
 
 type ThemeVariant = 'threats' | 'controls';
@@ -52,6 +53,18 @@ export default function MultiPickerCell({
   });
 
   const totalCount = sections.reduce((sum, section) => sum + section.value.length, 0);
+
+  function handleClose(): void {
+    // Save any pending changes from all pickers before closing
+    pickerSaveCallbacksRef.current.forEach((saveCallback) => {
+      saveCallback?.();
+    });
+    setIsExpanded(false);
+    // Return focus to the container
+    setTimeout(() => {
+      containerRef.current?.focus();
+    }, 0);
+  }
 
   // Handle Escape key at document level when portal is open
   useEffect(() => {
@@ -140,18 +153,6 @@ export default function MultiPickerCell({
         }
       }
     }
-  };
-
-  const handleClose = (): void => {
-    // Save any pending changes from all pickers before closing
-    pickerSaveCallbacksRef.current.forEach((saveCallback) => {
-      saveCallback?.();
-    });
-    setIsExpanded(false);
-    // Return focus to the container
-    setTimeout(() => {
-      containerRef.current?.focus();
-    }, 0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -294,6 +295,7 @@ export default function MultiPickerCell({
                   placeholder={section.placeholder}
                   variant={section.variant}
                   onSave={section.onChange}
+                  onCreateItem={section.onCreateItem}
                   autoEdit={activePickerIndex === index}
                   useInWrapper={true}
                   onTabPress={(shiftKey: boolean) => handlePickerTabPress(index, shiftKey)}

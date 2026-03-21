@@ -14,6 +14,7 @@
   word-wrap: break-word;
   word-break: break-word;
   box-sizing: border-box;
+  text-align: center;
 }
 
 .editable-edge-label:hover {
@@ -48,6 +49,7 @@
   resize: none;
   overflow: hidden;
   padding-bottom: 5px;
+  text-align: center;
 }
 
 .editable-edge-label-input:focus {

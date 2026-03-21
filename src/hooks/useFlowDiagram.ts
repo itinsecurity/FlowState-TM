@@ -66,8 +66,15 @@ export function useFlowDiagram({
 }: UseFlowDiagramParams): UseFlowDiagramResult {
   const keyPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordStateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const boundaryMembershipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isShiftPressedRef = useRef<boolean>(false);
   const mouseDownPositionRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  // Use a ref for isDraggingNode so onNodesChange keeps a stable identity during drag.
+  // Without this, onNodesChange recreates every time drag starts/stops, which cascades
+  // through React Flow and forces all nodes to re-render.
+  const isDraggingNodeRef = useRef(isDraggingNode);
+  isDraggingNodeRef.current = isDraggingNode;
   
   // Track Shift key state and mouse position globally
   useEffect(() => {
@@ -275,19 +282,17 @@ export function useFlowDiagram({
             if (closestNode) {
               // Deselect all edges and select the closest node
               setEdges((currentEdges) =>
-                currentEdges.map((edge) => ({
-                  ...edge,
-                  selected: false,
-                }))
+                currentEdges.map((edge) => edge.selected ? { ...edge, selected: false } : edge)
               );
               
               // Select the closest node after nodes are updated
               setTimeout(() => {
                 setNodes((currentNodes) =>
-                  currentNodes.map((node) => ({
-                    ...node,
-                    selected: node.id === closestNode.id,
-                  }))
+                  currentNodes.map((node) => {
+                    const shouldSelect = node.id === closestNode.id;
+                    if (node.selected === shouldSelect) return node;
+                    return { ...node, selected: shouldSelect };
+                  })
                 );
               }, 0);
             }
@@ -313,15 +318,20 @@ export function useFlowDiagram({
           return false;
         });
 
-        // If a boundary changed, schedule a membership update
+        // If a boundary changed, schedule a debounced membership update.
+        // During drag this fires every frame — debounce to avoid O(B×C) geometry
+        // checks + setThreatModel + updateYaml on every animation frame.
         if (hasBoundaryChange) {
-          // Use setTimeout to allow the node changes to be applied first
-          setTimeout(() => {
+          if (boundaryMembershipTimeoutRef.current) {
+            clearTimeout(boundaryMembershipTimeoutRef.current);
+          }
+          boundaryMembershipTimeoutRef.current = setTimeout(() => {
+            boundaryMembershipTimeoutRef.current = null;
             setNodes((currentNodes) => {
               updateBoundaryMemberships(currentNodes);
               return currentNodes;
             });
-          }, 0);
+          }, 150);
         }
 
         // Update threat model for dimension and position changes
@@ -354,7 +364,7 @@ export function useFlowDiagram({
           if (change.type === 'position' && node?.position) {
             // Only update threatModel for arrow key movements (not during drag)
             // For drag operations, the position will be updated in onNodeDragStop
-            if (isDraggingNode === null) {
+            if (isDraggingNodeRef.current === null) {
               arrowKeyMovedNodesRef.current.add(change.id);
               
               setThreatModel(
@@ -384,10 +394,16 @@ export function useFlowDiagram({
           }
         });
 
-        return sortNodesByRenderOrder(updatedNodes);
+        // Only re-sort when the render order might have changed (selection or
+        // dimension changes). During drag the order is stable — skipping the
+        // sort avoids array partition + comparisons on every animation frame.
+        const needsSort = hasSelectionChange || filteredChanges.some(
+          (c: any) => c.type === 'dimensions'
+        );
+        return needsSort ? sortNodesByRenderOrder(updatedNodes) : updatedNodes;
       });
     },
-    [updateBoundaryMemberships, updateYaml, setNodes, setEdges, setThreatModel, isDraggingNode, nodesRef, edgesRef, arrowKeyMovedNodesRef, debouncedRecordState],
+    [updateBoundaryMemberships, updateYaml, setNodes, setEdges, setThreatModel, nodesRef, edgesRef, arrowKeyMovedNodesRef, debouncedRecordState],
   );
   
   const onEdgesChange = useCallback(
@@ -438,16 +454,14 @@ export function useFlowDiagram({
             // Deselect all nodes and edges, then select the closest node
             setTimeout(() => {
               setNodes((currentNodes) =>
-                currentNodes.map((node) => ({
-                  ...node,
-                  selected: node.id === closestNode.id,
-                }))
+                currentNodes.map((node) => {
+                  const shouldSelect = node.id === closestNode.id;
+                  if (node.selected === shouldSelect) return node;
+                  return { ...node, selected: shouldSelect };
+                })
               );
               setEdges((currentEdges) =>
-                currentEdges.map((edge) => ({
-                  ...edge,
-                  selected: false,
-                }))
+                currentEdges.map((edge) => edge.selected ? { ...edge, selected: false } : edge)
               );
             }, 0);
           }
@@ -717,11 +731,14 @@ export function useFlowDiagram({
     };
   }, [updateYaml, setThreatModel, nodesRef, arrowKeyMovedNodesRef]);
   
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (recordStateTimeoutRef.current) {
         clearTimeout(recordStateTimeoutRef.current);
+      }
+      if (boundaryMembershipTimeoutRef.current) {
+        clearTimeout(boundaryMembershipTimeoutRef.current);
       }
     };
   }, []);
@@ -783,13 +800,13 @@ export function useFlowDiagram({
       // Generate a unique ID for the edge
       const edgeId = dataFlowRef;
       
-      // Deselect all nodes
-      setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
+      // Deselect all nodes (only create new refs for nodes that are actually selected)
+      setNodes((nds) => nds.map((node) => node.selected ? { ...node, selected: false } : node));
       
       // Add the edge to the diagram with proper markers and corrected source/target
       setEdges((eds) => [
-        // Deselect all existing edges
-        ...eds.map((edge) => ({ ...edge, selected: false })), 
+        // Deselect all existing edges (only spread selected ones)
+        ...eds.map((edge) => edge.selected ? { ...edge, selected: false } : edge), 
         { 
           id: edgeId,
           source: actualSource,

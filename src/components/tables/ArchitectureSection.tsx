@@ -42,6 +42,16 @@ const ArchitectureSection = React.memo(forwardRef<ArchitectureSectionRef, Archit
     (threatModel?.boundaries && threatModel.boundaries.length > 0) ||
     (threatModel?.data_flows && threatModel.data_flows.length > 0);
 
+  function focusCellInternal(cellKey: string): void {
+    const cell = cellRefs.current.get(cellKey);
+    if (cell) {
+      const input = cell.querySelector('input, textarea, select, [tabindex="0"]');
+      if (input) {
+        (input as HTMLElement).focus();
+      }
+    }
+  }
+
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     focusCell: (table: 'boundary' | 'dataflow', column: string, rowIndex: number = 0) => {
@@ -72,16 +82,6 @@ const ArchitectureSection = React.memo(forwardRef<ArchitectureSectionRef, Archit
   }));
 
   if (!hasContent) return null;
-
-  const focusCellInternal = (cellKey: string): void => {
-    const cell = cellRefs.current.get(cellKey);
-    if (cell) {
-      const input = cell.querySelector('input, textarea, select, [tabindex="0"]');
-      if (input) {
-        (input as HTMLElement).focus();
-      }
-    }
-  };
 
   // Boundaries table navigation
   const handleBoundaryTabPress = (boundaryRef: string, cellType: 'name' | 'description', shiftKey: boolean): void => {

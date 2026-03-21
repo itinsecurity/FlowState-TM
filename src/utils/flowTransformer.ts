@@ -2,7 +2,7 @@
  * Transform threat model data into React Flow nodes and edges
  */
 
-import type { Component, DataFlow, ThreatModel, Boundary, ComponentType } from '../types/threatModel';
+import type { Component, DataFlow, ThreatModel, Boundary, ComponentType, ComponentColor } from '../types/threatModel';
 
 const DEFAULT_NODE_POSITION = { x: 100, y: 100 };
 const NODE_SPACING = 150;
@@ -14,6 +14,7 @@ export interface ThreatModelNodeData {
   ref: string;
   description?: string;
   componentType: string;
+  color?: ComponentColor;
   assets: string[];
   availableAssets?: { ref: string; name: string }[];
   isDraggingNode?: boolean;
@@ -25,6 +26,7 @@ export interface ThreatModelNodeData {
   onNameChange?: (newName: string) => void;
   onEditModeChange?: (isEditing: boolean) => void;
   onTypeChange?: (newType: ComponentType) => void;
+  onColorChange?: (newColor: ComponentColor | undefined) => void;
   onDescriptionChange?: (newDescription: string) => void;
   onAssetsChange?: (newAssets: string[]) => void;
   onCreateAsset?: (name: string) => string | Promise<string>;
@@ -209,6 +211,7 @@ export function transformComponents(
         ref: component.ref,
         description: component.description,
         componentType: component.component_type,
+        color: component.color,
         assets: component.assets || [],
       },
     };

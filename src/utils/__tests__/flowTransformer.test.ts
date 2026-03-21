@@ -93,6 +93,21 @@ describe('flowTransformer', () => {
       expect(result[0].data.assets).toEqual(['asset-1', 'asset-2']);
     });
 
+    it('should include component color', () => {
+      const components: Component[] = [
+        {
+          ref: 'comp-1',
+          name: 'Component 1',
+          component_type: 'internal',
+          color: 'orange',
+        },
+      ];
+
+      const result = transformComponents(components);
+
+      expect(result[0].data.color).toBe('orange');
+    });
+
     it('should handle empty components array', () => {
       const result = transformComponents([]);
       expect(result).toEqual([]);
