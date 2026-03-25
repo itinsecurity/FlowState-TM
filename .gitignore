@@ -13,6 +13,10 @@ dist-ssr
 *.local
 coverage
 
+# Local notes and Claude settings
+local_notes
+.claude
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
