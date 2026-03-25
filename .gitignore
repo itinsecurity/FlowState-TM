@@ -16,6 +16,7 @@ coverage
 # Local notes and Claude settings
 local_notes
 .claude
+CLAUDE.md
 
 # Editor directories and files
 .vscode/*
