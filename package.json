@@ -1,12 +1,11 @@
 {
   "name": "flowstate-tm",
-  "homepage": "https://bjornarfl.github.io/FlowState-TM/",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "predeploy": "npm run build",
-    "deploy": "gh-pages --nojekyll -d dist -r https://x-access-token:${GITHUB_TOKEN}@github.com/bjornarfl/FlowState-TM.git",
+    "deploy": "gh-pages --nojekyll -d dist -r ${DEPLOY_REMOTE}",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
